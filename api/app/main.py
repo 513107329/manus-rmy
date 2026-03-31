@@ -7,6 +7,7 @@ import uvicorn
 import logging
 from contextlib import asynccontextmanager
 from app.interface.endpoints.routes import routes
+from app.infrastructure.storage.redis import get_redis
 
 openapi_tags = [{"name": "System", "description": "系统相关接口"}]
 
@@ -18,9 +19,14 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger(__name__)
     logger.info("FastAPI 生命周期启动中...")
 
+    # 初始化redis
+    redis = get_redis()
+    redis.init()
+
     try:
         yield
     finally:
+        redis.shutdown()
         logger.info("FastAPI 应用关闭中...")
 
 
