@@ -1,3 +1,4 @@
+from app.infrastructure.storage.database import get_postgres
 from app.interface.errors.exeception_handlers import register_exception_handlers
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,12 +23,17 @@ async def lifespan(app: FastAPI):
     # 初始化redis
     redis = get_redis()
     redis.init()
+    # 初始化数据库连接
+    postgres = get_postgres()
+    await postgres.init()
+    logger.info("Postgres数据库启动成功...")
 
     try:
         yield
     finally:
         redis.shutdown()
         logger.info("FastAPI 应用关闭中...")
+        logger.info("Postgres数据库关闭中...")
 
 
 def create_app() -> FastAPI:
