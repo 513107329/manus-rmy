@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     create_async_engine,
 )
+from sqlalchemy import text
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +35,7 @@ class Postgres:
 
             async with self._engine.begin() as async_conn:
                 await async_conn.execute(
-                    text('CREATE EXTENTION IF NOT EXIST "uuid-ossp"')
+                    text('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
                 )
                 logger.info("成功连接POSTGRES并且安装uuid-ossp")
 
@@ -68,6 +70,6 @@ async def get_db_session() -> AsyncSession:
         try:
             yield session
             await session.commit()
-        except Exception as e:
+        except Exception as _:
             await session.rollback()
             raise
