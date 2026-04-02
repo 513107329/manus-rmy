@@ -22,7 +22,8 @@ async def lifespan(app: FastAPI):
 
     # 初始化redis
     redis = get_redis()
-    redis.init()
+    await redis.init()
+    logger.info("Redis客户端启动成功...")
     # 初始化数据库连接
     postgres = get_postgres()
     await postgres.init()
@@ -32,7 +33,8 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         redis.shutdown()
-        logger.info("FastAPI 应用关闭中...")
+        logger.info("Redis客户端关闭中...")
+        postgres.shutdown()
         logger.info("Postgres数据库关闭中...")
 
 

@@ -1,4 +1,4 @@
-from redis import Redis
+from redis.asyncio import Redis
 from core.config import get_settings
 import logging
 from functools import lru_cache
@@ -11,7 +11,7 @@ class RedisClient:
         self._client: Redis | None = None
         self._setting = get_settings()
 
-    def init(self) -> None:
+    async def init(self) -> None:
         if self._client:
             logger.warning("redis客户端已初始化，无需重复操作")
             return
@@ -24,6 +24,7 @@ class RedisClient:
                 password=self._setting.redis_password,
                 decode_responses=True,
             )
+            await self._client.ping()
             logger.info("Redis客户端初始化成功")
         except Exception as e:
             logger.error(f"初始化redis客户端失败：{str(e)}")
