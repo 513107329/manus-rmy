@@ -1,3 +1,4 @@
+from app.infrastructure.storage.tos import get_tos
 from app.infrastructure.storage.database import get_postgres
 from app.interface.errors.exeception_handlers import register_exception_handlers
 from fastapi import FastAPI
@@ -28,6 +29,10 @@ async def lifespan(app: FastAPI):
     postgres = get_postgres()
     await postgres.init()
     logger.info("Postgres数据库启动成功...")
+    # 初始化数据库连接
+    tos = get_tos()
+    tos.init()
+    logger.info("TOS客户端启动成功...")
 
     try:
         yield
@@ -36,6 +41,8 @@ async def lifespan(app: FastAPI):
         logger.info("Redis客户端关闭中...")
         postgres.shutdown()
         logger.info("Postgres数据库关闭中...")
+        tos.shutdown()
+        logger.info("TOS客户端关闭中...")
 
 
 def create_app() -> FastAPI:

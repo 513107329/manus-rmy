@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     redis_password: str | None = None
     redis_db: int = 0
 
+    # tos相关配置
+    tos_access_key: str = ""
+    tos_secret_key: str = ""
+    tos_endpoint: str = ""
+    tos_region: str = ""
+
     model_config = SettingsConfigDict(
         env_file="../.env", env_file_encoding="utf-8", extra="ignore"
     )
