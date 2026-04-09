@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 from . import status_routes
-import logging
 
 
 def create_routes() -> APIRouter:

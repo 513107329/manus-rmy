@@ -1,5 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
+from pathlib import Path
+
+# .env 文件位于 api/ 目录，config.py 位于 api/core/，所以上一级目录就是 api/
+_ENV_FILE = Path(__file__).parent.parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -21,7 +25,7 @@ class Settings(BaseSettings):
     tos_region: str = ""
 
     model_config = SettingsConfigDict(
-        env_file="../.env", env_file_encoding="utf-8", extra="ignore"
+        env_file=_ENV_FILE, env_file_encoding="utf-8", extra="ignore"
     )
 
 
