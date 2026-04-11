@@ -9,6 +9,7 @@ _ENV_FILE = Path(__file__).parent.parent / ".env"
 class Settings(BaseSettings):
     env: str = "develop"
     log_level: str = "INFO"
+    app_config_filepath: str = "config.yaml"
 
     # 数据库相关配置
     sql_alchemy_database_url: str = ""
