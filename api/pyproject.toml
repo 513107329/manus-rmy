@@ -9,6 +9,7 @@ dependencies = [
     "asyncpg>=0.31.0",
     "fastapi>=0.135.2",
     "filelock>=3.25.2",
+    "json-repair>=0.59.3",
     "openai>=2.31.0",
     "psycopg2-binary>=2.9.11",
     "pydantic>=2.12.5",
