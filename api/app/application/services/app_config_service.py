@@ -1,3 +1,4 @@
+from app.domain.models.app_config import Mcp_Config
 from app.domain.models.app_config import Agent_Config
 from app.domain.models.app_config import LLM_Config
 from app.domain.repositories.app_config_repository import AppConfigRepository
@@ -16,6 +17,9 @@ class AppConfigService:
     def get_agent_config(self):
         return self.get_app_config().agent_config
 
+    def get_mcp_config(self):
+        return self.get_app_config().mcp_config
+
     def update_llm_config(self, llm_config: LLM_Config):
         app_config = self.get_app_config()
         app_config.llm_config = llm_config
@@ -27,3 +31,29 @@ class AppConfigService:
         app_config.agent_config = agent_config
         self.app_config_repository.save(app_config)
         return agent_config
+
+    def update_and_create_mcp_server(self, mcp_config: Mcp_Config):
+        app_config = self.get_app_config()
+        app_config.mcp_config.mcpServers.update(mcp_config.mcpServers)
+        self.app_config_repository.save(app_config)
+        return app_config.mcp_config
+
+    def delete_mcp_server(self, server_name: str):
+        app_config = self.get_app_config()
+
+        if server_name not in app_config.mcp_config.mcpServers:
+            raise ValueError(f"MCP服务 {server_name} 不存在")
+
+        del app_config.mcp_config.mcpServers[server_name]
+        self.app_config_repository.save(app_config)
+        return app_config.mcp_config
+
+    def enable_mcp_server(self, server_name: str, enable: bool):
+        app_config = self.get_app_config()
+
+        if server_name not in app_config.mcp_config.mcpServers:
+            raise ValueError(f"MCP服务 {server_name} 不存在")
+
+        app_config.mcp_config.mcpServers[server_name].enabled = enable
+        self.app_config_repository.save(app_config)
+        return app_config.mcp_config

@@ -4,8 +4,18 @@ llm_config:
   model_name: deepseek-chat
   tempature: 1.0
   max_tokens: 8192
-  
 agent_config:
   max_iterations: 999
   max_retries: 4
   max_search_results: 20
+mcp_config:
+  mcpServers:
+    amap-maps-streamableHTTP:
+      transport: streamable_http
+      enabled: true
+      description: ''
+      env: null
+      command: null
+      args: null
+      url: https://mcp.amap.com/mcp?key=您在高德官网上申请的key
+      headers: null

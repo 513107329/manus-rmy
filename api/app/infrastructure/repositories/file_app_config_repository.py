@@ -1,3 +1,5 @@
+from app.domain.models.app_config import Mcp_Config
+from app.domain.models.app_config import Agent_Config
 from typing import Optional
 from app.domain.models.app_config import App_Config, LLM_Config
 from pathlib import Path
@@ -18,7 +20,11 @@ class FileAppConfigRepository(AppConfigRepository):
 
     def _create_default_config_if_not_exists(self):
         if not self.config_path.exists():
-            default_app_config = App_Config(llm_config=LLM_Config())
+            default_app_config = App_Config(
+                llm_config=LLM_Config(),
+                agent_config=Agent_Config(),
+                mcp_config=Mcp_Config(),
+            )
             self.save(default_app_config)
 
     def load(self) -> Optional[App_Config]:
