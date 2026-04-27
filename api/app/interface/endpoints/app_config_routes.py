@@ -1,3 +1,4 @@
+from app.interface.schemas.base import ListMCPServerResponse
 from fastapi import Body
 from app.domain.models.app_config import McpServerConfig
 from typing import Optional
@@ -50,14 +51,14 @@ async def get_agent_config(
 
 @router.get(
     "/mcp-servers",
-    response_model=Response[Mcp_Config],
-    summary="获取MCP配置信息",
-    description="获取当前系统的MCP配置列表：MCP服务名字、工具列表、启用状态",
+    response_model=Response[ListMCPServerResponse],
+    summary="获取MCP服务器工具列表",
+    description="获取当前系统的MCP服务器列表：MCP服务名字、工具列表、启用状态",
 )
 async def get_mcp_servers(
     app_config_service: AppConfigService = Depends(get_app_config_service),
-) -> Response[Agent_Config]:
-    app_config = app_config_service.get_mcp_config()
+) -> Response[ListMCPServerResponse]:
+    app_config = await app_config_service.get_mcp_servers()
     if app_config is None:
         return Response(data=None)
     return Response(data=app_config)
@@ -140,13 +141,16 @@ async def enable_mcp_server(
     config: Dict[str, bool],
     app_config_service: AppConfigService = Depends(get_app_config_service),
 ) -> Response[Mcp_Config]:
-    updated_mcp_config = app_config_service.enable_mcp_server(
-        server_name, config.get("enable")
-    )
-    return Response.success(
-        data=updated_mcp_config.model_dump(),
-        message="更新MCP服务启用状态成功",
-    )
+    try:
+        updated_mcp_config = app_config_service.enable_mcp_server(
+            server_name, config.get("enable")
+        )
+        return Response.success(
+            data=updated_mcp_config.model_dump(),
+            message="更新MCP服务启用状态成功",
+        )
+    except ValueError as e:
+        return Response.fail(message=str(e))
 
 
 @router.delete(
@@ -159,8 +163,11 @@ async def delete_mcp_server(
     server_name: str,
     app_config_service: AppConfigService = Depends(get_app_config_service),
 ) -> Response[Mcp_Config]:
-    updated_mcp_config = app_config_service.delete_mcp_server(server_name)
-    return Response.success(
-        data=updated_mcp_config.model_dump(),
-        message="删除成功",
-    )
+    try:
+        updated_mcp_config = app_config_service.delete_mcp_server(server_name)
+        return Response.success(
+            data=updated_mcp_config.model_dump(),
+            message="删除成功",
+        )
+    except ValueError as e:
+        return Response.fail(message=str(e))

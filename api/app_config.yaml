@@ -10,6 +10,16 @@ agent_config:
   max_search_results: 20
 mcp_config:
   mcpServers:
+    jina-mcp-server:
+      transport: streamable_http
+      enabled: true
+      description: ''
+      env: null
+      command: null
+      args: null
+      url: https://mcp.jina.ai/v1
+      headers:
+        Authorization: Bearer jina_530b228d51c14af3928063aa15261251mtVmkZTl2TAeLG5EE9dGdCQHVyOA
     amap-maps-streamableHTTP:
       transport: streamable_http
       enabled: true
@@ -17,5 +27,5 @@ mcp_config:
       env: null
       command: null
       args: null
-      url: https://mcp.amap.com/mcp?key=您在高德官网上申请的key
+      url: https://mcp.amap.com/mcp?key=f938c6ebd96c8af7f622dc77cac4c987
       headers: null

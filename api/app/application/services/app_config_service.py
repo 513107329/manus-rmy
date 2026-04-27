@@ -1,3 +1,6 @@
+from app.domain.services.tools.mcp import McpClientManager
+from app.interface.schemas.base import ListMCPServerItem
+from typing import List
 from app.domain.models.app_config import Mcp_Config
 from app.domain.models.app_config import Agent_Config
 from app.domain.models.app_config import LLM_Config
@@ -17,8 +20,26 @@ class AppConfigService:
     def get_agent_config(self):
         return self.get_app_config().agent_config
 
-    def get_mcp_config(self):
-        return self.get_app_config().mcp_config
+    async def get_mcp_servers(self) -> List[ListMCPServerItem]:
+        mcp_config = self.get_app_config().mcp_config
+        mcp_servers = []
+        mcp_client_manager = McpClientManager(mcp_config)
+
+        try:
+            await mcp_client_manager.initialize()
+            tools = mcp_client_manager.tools
+            for server_name, server_config in mcp_config.mcpServers.items():
+                mcp_servers.append(
+                    ListMCPServerItem(
+                        server_name=server_name,
+                        enabled=server_config.enabled,
+                        transport=server_config.transport,
+                        tools=[tool.name for tool in tools.get(server_name, [])],
+                    )
+                )
+        finally:
+            await mcp_client_manager.cleanup()
+        return {mcp_servers}
 
     def update_llm_config(self, llm_config: LLM_Config):
         app_config = self.get_app_config()
