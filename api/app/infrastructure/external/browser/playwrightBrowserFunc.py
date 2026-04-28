@@ -31,3 +31,7 @@ const getVisibleContent = () => {
     return `<div>${visibilityContent.join(" ")}</div>`
 }
 """
+
+GET_INTERACTIVE_VISIBLE_CONTENT_FUNC = """
+    
+"""
