@@ -1,6 +1,7 @@
 from app.infrastructure.external.browser.playwrightBrowserFunc import (
     GET_VISIBLE_CONTENT_FUNC,
     GET_INTERACTIVE_VISIBLE_CONTENT_FUNC,
+    INJECT_CONSOLE_FUNC,
 )
 import asyncio
 from app.domain.models.tool_result import ToolResult
@@ -164,9 +165,7 @@ class PlayWrightBrowser(BrowserProtocol):
         formatted_elements = []
 
         for element in interactive_elements:
-            formatted_elements.append(
-                f"{element['index']}:<{element.tagName}>{element.text}</{element.tagName}>"
-            )
+            formatted_elements.append(f"{element['index']}:{element['outerHTML']}")
 
         return formatted_elements
 
@@ -242,20 +241,23 @@ class PlayWrightBrowser(BrowserProtocol):
     async def console_exec(self, javascript: str) -> ToolResult:
         await self._ensure_page_exist()
         try:
-            result = await self.page.evaluate(javascript)
-            return ToolResult(success=True, message="执行成功", data=result)
+            await self.page.evaluate(INJECT_CONSOLE_FUNC)
         except Exception as e:
-            logger.error(f"执行失败: {e}")
-            return ToolResult(success=False, message=f"执行失败: {e}")
+            logger.error(f"注入window.console.logs失败: {str(e)}")
+
+        result = await self.page.evaluate(javascript)
+        return ToolResult(success=True, message="执行成功", data=result)
 
     async def console_view(self, max_lines: Optional[int] = None) -> ToolResult:
         await self._ensure_page_exist()
 
-        logs = await self.page.evaluate("""
+        logs = await self.page.evaluate(
+            """
             () => {
                 return window.console.logs || []
             }
-        """)
+        """
+        )
 
         if max_lines is not None:
             logs = logs[-max_lines:]
@@ -327,3 +329,72 @@ class PlayWrightBrowser(BrowserProtocol):
         except Exception as e:
             logger.error(f"点击失败: {e}")
             return ToolResult(success=False, message=f"点击失败: {e}")
+
+    async def input(
+        self,
+        index: Optional[int] = None,
+        coordinate_x: Optional[float] = None,
+        coordinate_y: Optional[float] = None,
+        text: Optional[str] = None,
+        press_enter: Optional[bool] = None,
+    ) -> ToolResult:
+        await self._ensure_page_exist()
+        if index is not None:
+            try:
+                element = await self._get_element_by_id(index)
+                if element is None:
+                    return ToolResult(success=False, message="元素不存在")
+                try:
+                    await element.fill("")
+                    await element.type(text)
+                except Exception as e:
+                    await element.click()
+                    await element.type(text)
+            except Exception as e:
+                logger.error(f"输入失败: {e}")
+                return ToolResult(success=False, message=f"输入失败: {e}")
+        elif coordinate_x is not None and coordinate_y is not None:
+            try:
+                await self.page.mouse.click(x=coordinate_x, y=coordinate_y)
+                await self.page.keyboard.type(text)
+            except Exception as e:
+                logger.error(f"输入失败: {e}")
+                return ToolResult(success=False, message=f"输入失败: {e}")
+        if press_enter:
+            await self.page.keyboard.press("Enter")
+        return ToolResult(success=True, message="输入成功")
+
+    async def move_mouse(
+        self,
+        coordinate_x: Optional[float] = None,
+        coordinate_y: Optional[float] = None,
+    ) -> ToolResult:
+        await self._ensure_page_exist()
+        try:
+            if coordinate_x is not None and coordinate_y is not None:
+                await self.page.mouse.move(x=coordinate_x, y=coordinate_y)
+            return ToolResult(success=True, message="移动成功")
+        except Exception as e:
+            logger.error(f"移动失败: {e}")
+            return ToolResult(success=False, message=f"移动失败: {e}")
+
+    async def press_key(self, key: str) -> ToolResult:
+        await self._ensure_page_exist()
+        try:
+            await self.page.keyboard.press(key)
+            return ToolResult(success=True, message="按键成功")
+        except Exception as e:
+            logger.error(f"按键失败: {e}")
+            return ToolResult(success=False, message=f"按键失败: {e}")
+
+    async def select_option(self, index: int, option: int) -> ToolResult:
+        await self._ensure_page_exist()
+        try:
+            element = await self._get_element_by_id(index)
+            if element is None:
+                return ToolResult(success=False, message="元素不存在")
+            await element.select_option(index=option)
+            return ToolResult(success=True, message="选择成功")
+        except Exception as e:
+            logger.error(f"选择失败: {e}")
+            return ToolResult(success=False, message=f"选择失败: {e}")
