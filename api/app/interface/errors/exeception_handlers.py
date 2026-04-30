@@ -1,3 +1,4 @@
+from fastapi import Request
 from starlette.exceptions import HTTPException
 from app.application.errors.exceptions import AppException
 from starlette.responses import JSONResponse

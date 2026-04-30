@@ -1,3 +1,4 @@
+from email import message
 from typing import List
 from app.models.shell import ShellViewResult
 from app.models.shell import WaitProcessResult
@@ -13,7 +14,7 @@ import asyncio
 from app.models.shell import ConsoleRecord
 from typing import Dict
 import socket
-from getpass import getpass
+from getpass import getuser
 from app.interface.errors.exceptions import BadRequestException
 from app.models.shell import ShellExecResult
 import uuid
@@ -39,7 +40,7 @@ class ShellService:
         return exec_dir
 
     def _format_ps1(self, exec_dir: str) -> str:
-        username = getpass.getuser()
+        username = getuser()
         hostname = socket.gethostname()
         display_dir = self._get_display_path(exec_dir)
         return f"{username}@{hostname}:{display_dir}"
@@ -73,8 +74,10 @@ class ShellService:
         self, session_id: str, seconds: int
     ) -> WaitProcessResult:
         shell = self.active_shells[session_id]
+        print(shell)
         if shell:
             process = shell.process
+            print(process.returncode)
             try:
                 seconds = 60 if seconds is None or seconds <= 0 else seconds
 
@@ -192,7 +195,6 @@ class ShellService:
                     ConsoleRecord(ps1=ps1, command=command, output="")
                 )
                 asyncio.create_task(self._read_output(session_id, new_process))
-
             try:
                 wait_result = await self.wait_for_process(session_id, seconds=5)
                 if wait_result.returncode is not None:
@@ -213,5 +215,6 @@ class ShellService:
 
         except Exception as e:
             raise AppException(
-                msg="命令执行失败", data={"session_id": session_id, command: command}
+                message=f"命令执行失败，{str(e)}",
+                data={"session_id": session_id, command: command},
             )

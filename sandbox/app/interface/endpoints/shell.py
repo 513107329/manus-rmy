@@ -1,3 +1,4 @@
+from app.interface.errors.exception_handler import logger
 from app.services.shell import ShellService
 from fastapi import Depends
 from app.interface.schemas.shell import ExecCommandRequest
@@ -19,6 +20,7 @@ router = APIRouter(prefix="/shell", tags=["shell模块"])
 async def exec_command(
     request: ExecCommandRequest, shellService: ShellService = Depends(get_shell_service)
 ) -> Response[ShellExecResult]:
+
     if not request.session_id or request.session_id == "":
         request.session_id = shellService.create_session_id()
     if not request.exec_dir or request.exec_dir == "":
