@@ -1,5 +1,6 @@
-from app.interfaces.endpoints.routes import router
-from app.infrastructures.logging.logging import setup_logging
+from app.interface.errors.exception_handler import register_exception_handler
+from app.interface.endpoints.routes import router
+from app.infrastructure.logging.logging import setup_logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -48,6 +49,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+register_exception_handler(app)
 
 app.include_router(router, prefix="/api")
 
