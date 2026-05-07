@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 class WaitProcessResult(BaseModel):
-    returncode: Optional[str] = Field(default=None, description="shell执行的返回码")
+    returncode: Optional[int] = Field(default=None, description="shell执行的返回码")
 
 
 class ShellViewResult(BaseModel):
@@ -35,6 +35,15 @@ class ShellExecResult(BaseModel):
     session_id: str = Field(..., description="会话ID")
     command: str = Field(..., description="执行的命令")
     status: str = Field(..., description="shell执行的状态")
-    returncode: Optional[str] = Field(default=None, description="shell执行的返回码")
+    returncode: Optional[int] = Field(default=None, description="shell执行的返回码")
     stdout: Optional[str] = Field(default=None, description="shell执行的标准输出")
     stderr: Optional[str] = Field(default=None, description="shell执行的标准错误")
+
+
+class WriteToProcessResult(BaseModel):
+    status: str = Field(..., description="写入状态")
+
+
+class ShellKillResult(BaseModel):
+    status: str = Field(..., description="杀死状态")
+    returncode: int = Field(..., description="shell执行的返回码")

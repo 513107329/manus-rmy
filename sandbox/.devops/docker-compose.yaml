@@ -1,0 +1,13 @@
+services:
+  manus-sandbox-dev:
+    build:
+      context: ..
+      dockerfile: .devops/Dockerfile
+    container_name: manus-sandbox-dev
+    ports:
+      - "2222:22"
+      - "8000:8000"
+    restart: "always"
+    volumes:
+      - ../:/workspace
+    working_dir: /workspace

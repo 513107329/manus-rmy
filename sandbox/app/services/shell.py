@@ -1,3 +1,7 @@
+import sys
+from app.models.shell import ShellKillResult
+from app.models.shell import WriteToProcessResult
+from typing import Optional
 from email import message
 from typing import List
 from app.models.shell import ShellViewResult
@@ -5,11 +9,9 @@ from app.models.shell import WaitProcessResult
 from app.interface.errors.exceptions import NotFoundException
 import codecs
 import shutil
-import shutil
 import sys
 from app.interface.errors.exceptions import AppException
 import logging
-import asyncio
 import asyncio
 from app.models.shell import ConsoleRecord
 from typing import Dict
@@ -46,10 +48,7 @@ class ShellService:
         return f"{username}@{hostname}:{display_dir}"
 
     async def _read_output(self, session_id: str, process: asyncio.subprocess.Process):
-        if sys.platform == "win32":
-            encoding = "gb18030"
-        else:
-            encoding = "utf-8"
+        encoding = "utf-8"
 
         shell = self.active_shells[session_id]
         decoder = codecs.getincrementaldecoder(encoding)(errors="replace")
@@ -74,10 +73,8 @@ class ShellService:
         self, session_id: str, seconds: int
     ) -> WaitProcessResult:
         shell = self.active_shells[session_id]
-        print(shell)
         if shell:
             process = shell.process
-            print(process.returncode)
             try:
                 seconds = 60 if seconds is None or seconds <= 0 else seconds
 
@@ -95,19 +92,10 @@ class ShellService:
         self, exec_dir: str, command: str
     ) -> asyncio.subprocess.Process:
         shell_exec = None
-        if sys.platform != "win32":
-            if os.path.exists("/bin/bash"):
-                shell_exec = "/bim/bash"
-            elif os.path.exists("/bin/zsh"):
-                shell_exec = "/bin/zsh"
-        else:
-            shell_exec = shutil.which("powershell")
-
-            if not shell_exec:
-                shell_exec = shutil.which("cmd")
-
-            if not shell_exec:
-                raise AppException("未找到可用的shell")
+        if os.path.exists("/bin/bash"):
+            shell_exec = "/bim/bash"
+        elif os.path.exists("/bin/zsh"):
+            shell_exec = "/bin/zsh"
 
         return await asyncio.create_subprocess_shell(
             command,
@@ -139,7 +127,12 @@ class ShellService:
             )
         return clean_console_records
 
-    async def view_shell(self, session_id: str) -> ShellViewResult:
+    async def view_shell(
+        self, session_id: str, console: Optional[bool] = False
+    ) -> ShellViewResult:
+        if session_id not in self.active_shells:
+            raise NotFoundException("会话不存在")
+
         shell = self.active_shells[session_id]
         if shell:
             raw_output = shell.output
@@ -148,7 +141,7 @@ class ShellService:
             return ShellViewResult(
                 session_id=session_id,
                 output=clean_output,
-                console_records=console_records,
+                console_records=console_records if console else [],
             )
         else:
             raise NotFoundException("会话不存在")
@@ -199,7 +192,8 @@ class ShellService:
                 wait_result = await self.wait_for_process(session_id, seconds=5)
                 if wait_result.returncode is not None:
                     logger.debug("Shell会话进程已结束")
-                    view_result = await self.view_shell(session_id)
+                    view_result = await self.view_shell(session_id, console=False)
+                    print("session_id", view_result)
                     return ShellExecResult(
                         session_id=session_id,
                         command=command,
@@ -218,3 +212,78 @@ class ShellService:
                 message=f"命令执行失败，{str(e)}",
                 data={"session_id": session_id, command: command},
             )
+
+    async def write_to_process(
+        self, session_id: str, data: str, enter: bool = True
+    ) -> WriteToProcessResult:
+        if session_id not in self.active_shells:
+            raise NotFoundException("会话不存在")
+
+        shell = self.active_shells[session_id]
+        if shell:
+            process = shell.process
+            try:
+                if process.returncode is not None:
+                    raise AppException("会话已结束，无法写入输入")
+
+                encoding = "utf-8"
+                line_ending = "\n"
+                text_to_send = data
+                if enter:
+                    text_to_send += line_ending
+                log_text = data + ("\n" if enter else "")
+                shell.output += log_text
+                if shell.console_records:
+                    shell.console_records[-1].output += log_text
+                if process.stdin:
+                    process.stdin.write(text_to_send.encode(encoding))
+                    process.stdin.drain()
+                    return WriteToProcessResult(
+                        session_id=session_id,
+                        command=data,
+                        status="completed",
+                        returncode=process.returncode,
+                        stdout=shell.output,
+                        stderr="",
+                    )
+            except UnicodeError as e:
+                logger.error(f"编码错误: {e}")
+                raise AppException(f"编码错误: {e}")
+            except Exception as e:
+                logger.error(f"向shell进程写入数据失败: {e}")
+                raise AppException(f"向shell进程写入数据失败: {e}")
+        else:
+            raise NotFoundException("会话不存在")
+
+    async def kill_process(self, session_id: str) -> ShellKillResult:
+        if session_id not in self.active_shells:
+            raise NotFoundException("会话不存在")
+
+        shell = self.active_shells[session_id]
+        if shell:
+            process = shell.process
+            try:
+                if process.returncode is None:
+                    if process.stdin:
+                        await process.terminate()
+
+                        try:
+                            await asyncio.wait_for(process.wait(), timeout=3)
+                        except asyncio.TimeoutError as _:
+                            process.kill()
+                        logger.info(f"进程已终止: 返回代码为{process.returncode}")
+                        return ShellKillResult(
+                            status="terminated",
+                            returncode=process.returncode,
+                        )
+                else:
+                    logger.info(f"进程已终止: 返回代码为{process.returncode}")
+                    return ShellKillResult(
+                        status="already_terminated",
+                        returncode=process.returncode,
+                    )
+            except Exception as e:
+                logger.error(f"杀死shell进程失败: {e}")
+                raise AppException("杀死shell进程失败")
+        else:
+            raise NotFoundException("会话不存在")
