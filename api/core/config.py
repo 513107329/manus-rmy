@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 from pathlib import Path
@@ -24,6 +25,17 @@ class Settings(BaseSettings):
     tos_secret_key: str = ""
     tos_endpoint: str = ""
     tos_region: str = ""
+
+    # Sandbox配置
+    sandbox_address: Optional[str] = None
+    sandbox_image: Optional[str] = None
+    sandbox_name_prefix: Optional[str] = None
+    sandbox_ttl_minutes: Optional[int] = 60
+    sandbox_network: Optional[str] = None
+    sandbox_chrome_args: Optional[str] = None
+    sandbox_https_proxy: Optional[str] = None
+    sandbox_http_proxy: Optional[str] = None
+    sandbox_no_proxy: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=_ENV_FILE, env_file_encoding="utf-8", extra="ignore"

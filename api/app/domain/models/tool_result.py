@@ -11,3 +11,8 @@ class ToolResult(BaseModel, Generic[T]):
     success: bool = True
     data: Optional[T] = None  # 工具执行结果/数据
     message: Optional[str] = None  # 额外信息提示
+
+    def from_sandbox(
+        cls, code: int, message: str, data: Optional[T], **kwargs
+    ) -> "ToolResult":
+        return cls(success=True if code < 300 else False, message=message, data=data)
