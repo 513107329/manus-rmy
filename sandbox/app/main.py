@@ -1,3 +1,4 @@
+from app.core.middleware import auto_extend_timeout_middleware
 from app.interface.errors.exception_handler import register_exception_handler
 from app.interface.endpoints.routes import router
 from app.infrastructure.logging.logging import setup_logging
@@ -42,6 +43,8 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.middleware('http')(auto_extend_timeout_middleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -57,4 +60,4 @@ app.include_router(router, prefix="/api")
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

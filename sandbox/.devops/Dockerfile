@@ -1,6 +1,7 @@
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV HOSTNAME=sandbox
 ENV UV_PROJECT_ENVIRONMENT="/venv"
 ENV UV_LINK_MODE=copy
 

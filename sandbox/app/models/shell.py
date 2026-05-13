@@ -5,6 +5,10 @@ from typing import List
 from typing import Optional
 from pydantic import BaseModel, Field
 
+class ConsoleRecord(BaseModel):
+    ps1: str = Field(..., description="提示符")
+    command: str = Field(..., description="执行的命令")
+    output: str = Field(..., description="输出")
 
 class WaitProcessResult(BaseModel):
     returncode: Optional[int] = Field(default=None, description="shell执行的返回码")
@@ -14,13 +18,6 @@ class ShellViewResult(BaseModel):
     session_id: str = Field(..., description="会话ID")
     output: str = Field(..., description="输出")
     console_records: List[ConsoleRecord] = Field(default_factory=list)
-
-
-class ConsoleRecord(BaseModel):
-    ps1: str = Field(..., description="提示符")
-    command: str = Field(..., description="执行的命令")
-    output: str = Field(..., description="输出")
-
 
 class Shell(BaseModel):
     process: asyncio.subprocess.Process = Field(..., description="执行的子进程")

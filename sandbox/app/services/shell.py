@@ -91,11 +91,7 @@ class ShellService:
     async def _create_process(
         self, exec_dir: str, command: str
     ) -> asyncio.subprocess.Process:
-        shell_exec = None
-        if os.path.exists("/bin/bash"):
-            shell_exec = "/bim/bash"
-        elif os.path.exists("/bin/zsh"):
-            shell_exec = "/bin/zsh"
+        shell_exec = "/bin/bash"
 
         return await asyncio.create_subprocess_shell(
             command,
@@ -168,7 +164,7 @@ class ShellService:
                         ConsoleRecord(ps1=ps1, command=command, output="")
                     ],
                 )
-                asyncio.create_task(self._read_output(session_id, process))
+                await asyncio.create_task(self._read_output(session_id, process))
             else:
                 shell = self.active_shells[session_id]
                 old_process = shell.process
@@ -187,7 +183,7 @@ class ShellService:
                 shell.console_records.append(
                     ConsoleRecord(ps1=ps1, command=command, output="")
                 )
-                asyncio.create_task(self._read_output(session_id, new_process))
+                await asyncio.create_task(self._read_output(session_id, new_process))
             try:
                 wait_result = await self.wait_for_process(session_id, seconds=5)
                 if wait_result.returncode is not None:
@@ -210,7 +206,7 @@ class ShellService:
         except Exception as e:
             raise AppException(
                 message=f"命令执行失败，{str(e)}",
-                data={"session_id": session_id, command: command},
+                data={"session_id": session_id, "command": command},
             )
 
     async def write_to_process(
