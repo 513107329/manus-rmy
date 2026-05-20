@@ -1,3 +1,4 @@
+from app.infrastructure.repositories.db_session_repository import DbSessionRepository
 from app.infrastructure.external.health_checker.postgres_checker import (
     PostgresHealthChecker,
 )
@@ -19,6 +20,13 @@ from app.application.services.app_config_service import AppConfigService
 def get_app_config_service() -> AppConfigService:
     file_app_config_repository = FileAppConfigRepository("app_config.yaml")
     return AppConfigService(app_config_repository=file_app_config_repository)
+
+
+@lru_cache()
+def get_db_session_repository(
+    db_session: AsyncSession = Depends(get_db_session),
+) -> DbSessionRepository:
+    return DbSessionRepository(db_session)
 
 
 @lru_cache(maxsize=1)

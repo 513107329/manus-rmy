@@ -29,3 +29,8 @@ mcp_config:
       args: null
       url: https://mcp.amap.com/mcp?key=f938c6ebd96c8af7f622dc77cac4c987
       headers: null
+a2a_config:
+  a2a_servers:
+  - id: c5352b31-1e43-412d-a3ea-a8f68eba02dc
+    base_url: http://127.0.0.1:9999
+    enabled: true

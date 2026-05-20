@@ -1,3 +1,4 @@
+from app.domain.repositories.session_repository import SessionRepository
 from app.domain.models.event import MessageEvent
 from app.domain.models.event import ErrorEvent
 from app.domain.models.event import ToolEventStatus
@@ -18,6 +19,7 @@ from app.domain.external.llm import LLM
 from app.domain.models.app_config import Agent_Config
 from typing import Optional
 from abc import ABC
+from app.domain.models.message import Message
 
 logger = logging.getLogger(__name__)
 
@@ -33,20 +35,25 @@ class BaseAgent(ABC):
 
     def __init__(
         self,
+        session_id: str,
+        session_repository: SessionRepository,
         agent_config: Agent_Config,
         llm: LLM,
         memory: Memory,
         json_parser: JSONParser,
         tools: List[BaseTool],
     ) -> None:
+        self._session_id = session_id
+        self._session_repository = session_repository
         self._agent_config = agent_config
         self._llm = llm
-        self._memory = memory
+        self._memory: Memory = memory
         self._json_parser = json_parser
         self._tools = tools
 
     async def _add_to_memory(self, messages: List[Dict[str, Any]]) -> None:
         """将对应信息添加到记忆中"""
+        await self._ensure_memory()
         if self._memory.is_empty:
             self._memory.add_messages(
                 {
@@ -55,6 +62,9 @@ class BaseAgent(ABC):
                 }
             )
         self._memory.add_messages(messages)
+        await self._session_repository.save_memory(
+            self._session_id, self.name, self._memory
+        )
 
     def _get_tool(self, function_name: str) -> Optional[BaseTool]:
         """获取工具"""
@@ -62,6 +72,13 @@ class BaseAgent(ABC):
             if tool.has_tool(function_name):
                 return tool
         return None
+
+    async def _ensure_memory(self) -> None:
+        """确保记忆已加载"""
+        if self._memory is None:
+            self._memory = await self._session_repository.get_memory(
+                self._session_id, self.name
+            )
 
     def _get_available_tools(self) -> List[Dict[str, Any]]:
         """获取可用工具"""
@@ -72,7 +89,11 @@ class BaseAgent(ABC):
 
     async def compact_memory(self) -> None:
         """压缩记忆"""
+        await self._ensure_memory()
         self._memory.compact()
+        await self._session_repository.save_memory(
+            self._session_id, self.name, self._memory
+        )
 
     async def _invoke_tool(
         self, tool: BaseTool, tool_name: str, tool_args: Dict[str, Any]
@@ -174,7 +195,7 @@ class BaseAgent(ABC):
                         "role": "tool",
                         "tool_call_id": tool_id,
                         "function_name": function_name,
-                        "content": result.model_dump(),
+                        "content": result.model_dump_json(),
                     }
                 )
             message = await self._invoke_llm(tool_messages, format)
@@ -183,6 +204,33 @@ class BaseAgent(ABC):
 
         yield MessageEvent(message=message["content"])
 
-    @property
-    def memory(self) -> Memory:
-        return self._memory
+    async def roll_back(self, message: Message) -> None:
+        """回滚"""
+        await self._ensure_memory()
+        last_message = self._memory.get_last_message()
+        if (
+            not last_message
+            or not last_message.get("tool_calls")
+            or len(last_message.get("tool_calls")) == 0
+        ):
+            return
+        tool_call = last_message.get("tool_calls")[0]
+
+        function_name = tool_call.get("function").get("name")
+        tool_id = tool_call.get("id")
+
+        if function_name == "message_ask_user":
+            self._memory.add_message(
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_id,
+                    "function_name": function_name,
+                    "content": message.model_dump_json(),
+                }
+            )
+        else:
+            self._memory.rollback_memory()
+
+        await self._session_repository.save_memory(
+            self._session_id, self.name, self._memory
+        )

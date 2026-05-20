@@ -1,3 +1,5 @@
+from app.domain.models.event import Event
+from typing import AsyncGenerator
 from typing import Any
 from typing import Dict
 from typing import List
@@ -5,15 +7,16 @@ from typing import Protocol
 
 
 class LLM(Protocol):
-    def invoke(
+    async def invoke(
         self,
         messages: List[Dict[str, Any]],
         tools: List[Dict[str, Any]],
         tool_choice: str,
         model: str,
+        response_format: Dict[str, Any],
         temperature: float,
         max_tokens: int,
-    ) -> Dict[str, Any]:
+    ) -> AsyncGenerator[Event, None]:
         """
         Invoke the LLM with the given messages and tools.
 

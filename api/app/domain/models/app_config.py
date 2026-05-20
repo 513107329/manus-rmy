@@ -1,3 +1,4 @@
+import uuid
 from typing import List
 from typing import Optional
 from enum import Enum
@@ -9,10 +10,21 @@ class App_Config(BaseModel):
     llm_config: LLM_Config
     agent_config: Agent_Config
     mcp_config: Mcp_Config
+    a2a_config: A2A_Config
 
     model_config = ConfigDict(
         extra="allow",
     )
+
+
+class A2A_ServerConfig(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    base_url: str
+    enabled: bool = True
+
+
+class A2A_Config(BaseModel):
+    a2a_servers: list[A2A_ServerConfig] = Field(default_factory=list)
 
 
 class LLM_Config(BaseModel):

@@ -1,3 +1,4 @@
+from app.domain.models.app_config import A2A_Config
 from app.domain.models.app_config import Mcp_Config
 from app.domain.models.app_config import Agent_Config
 from typing import Optional
@@ -24,6 +25,7 @@ class FileAppConfigRepository(AppConfigRepository):
                 llm_config=LLM_Config(),
                 agent_config=Agent_Config(),
                 mcp_config=Mcp_Config(),
+                a2a_config=A2A_Config(),
             )
             self.save(default_app_config)
 

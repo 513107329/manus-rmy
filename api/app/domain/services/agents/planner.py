@@ -31,7 +31,7 @@ from app.domain.models.message import Message
 """
 
 
-class PalanAgent(BaseAgent):
+class PlannerAgent(BaseAgent):
     """规划智能体"""
 
     _name = "planner"

@@ -1,3 +1,5 @@
+from app.interface.schemas.base import ListA2AServerResponse
+from app.domain.models.app_config import A2A_Config
 from app.interface.schemas.base import ListMCPServerResponse
 from fastapi import Body
 from app.domain.models.app_config import McpServerConfig
@@ -50,21 +52,6 @@ async def get_agent_config(
 
 
 @router.get(
-    "/mcp-servers",
-    response_model=Response[ListMCPServerResponse],
-    summary="获取MCP服务器工具列表",
-    description="获取当前系统的MCP服务器列表：MCP服务名字、工具列表、启用状态",
-)
-async def get_mcp_servers(
-    app_config_service: AppConfigService = Depends(get_app_config_service),
-) -> Response[ListMCPServerResponse]:
-    app_config = await app_config_service.get_mcp_servers()
-    if app_config is None:
-        return Response(data=None)
-    return Response(data=app_config)
-
-
-@router.get(
     "/app-config",
     response_model=Response[App_Config],
     summary="获取APP配置信息",
@@ -111,6 +98,22 @@ async def update_agent_config(
         data=updated_agent_config.model_dump(),
         message="更新成功",
     )
+
+
+# MCP服务
+@router.get(
+    "/mcp-servers",
+    response_model=Response[ListMCPServerResponse],
+    summary="获取MCP服务器工具列表",
+    description="获取当前系统的MCP服务器列表：MCP服务名字、工具列表、启用状态",
+)
+async def get_mcp_servers(
+    app_config_service: AppConfigService = Depends(get_app_config_service),
+) -> Response[ListMCPServerResponse]:
+    app_config = await app_config_service.get_mcp_servers()
+    if app_config is None:
+        return Response(data=None)
+    return Response(data=app_config)
 
 
 @router.post(
@@ -167,6 +170,82 @@ async def delete_mcp_server(
         updated_mcp_config = app_config_service.delete_mcp_server(server_name)
         return Response.success(
             data=updated_mcp_config.model_dump(),
+            message="删除成功",
+        )
+    except ValueError as e:
+        return Response.fail(message=str(e))
+
+
+# A2A服务
+@router.get(
+    "/a2a-servers",
+    response_model=Response[ListA2AServerResponse],
+    summary="获取A2A服务器工具列表",
+    description="获取当前系统的A2A服务器列表：A2A服务名字、启用状态",
+)
+async def get_a2a_servers(
+    app_config_service: AppConfigService = Depends(get_app_config_service),
+) -> Response[ListA2AServerResponse]:
+    app_config = await app_config_service.get_a2a_servers()
+    if app_config is None:
+        return Response(data=None)
+    return Response.success(data=app_config)
+
+
+@router.post(
+    "/a2a-servers",
+    response_model=Response[A2A_Config],
+    summary="新增A2A服务配置",
+    description="传递A2A配置信息为系统添加A2A工具",
+)
+async def create_a2a_server(
+    base_url: str = Body(..., embed=True),
+    app_config_service: AppConfigService = Depends(get_app_config_service),
+) -> Response[A2A_Config]:
+    updated_a2a_config = app_config_service.create_a2a_server(base_url)
+    return Response.success(
+        data=updated_a2a_config.model_dump(),
+        message="创建成功",
+    )
+
+
+@router.post(
+    "/a2a-servers/{id}/enable",
+    response_model=Response[A2A_Config],
+    summary="更新A2A服务启用状态",
+    description="根据传递的A2A服务id为系统更新A2A工具的启用状态",
+)
+async def enable_a2a_server(
+    id: str,
+    config: Dict[str, bool],
+    app_config_service: AppConfigService = Depends(get_app_config_service),
+) -> Response[A2A_Config]:
+    try:
+        updated_a2a_config = app_config_service.enable_a2a_server(
+            id, config.get("enable")
+        )
+        return Response.success(
+            data=updated_a2a_config.model_dump(),
+            message="更新A2A服务启用状态成功",
+        )
+    except ValueError as e:
+        return Response.fail(message=str(e))
+
+
+@router.delete(
+    "/a2a-servers/{id}/delete",
+    response_model=Response[A2A_Config],
+    summary="删除A2A服务配置",
+    description="根据传递的A2A服务id为系统删除A2A工具",
+)
+async def delete_a2a_server(
+    id: str,
+    app_config_service: AppConfigService = Depends(get_app_config_service),
+) -> Response[A2A_Config]:
+    try:
+        updated_a2a_config = app_config_service.delete_a2a_server(id)
+        return Response.success(
+            data=updated_a2a_config.model_dump(),
             message="删除成功",
         )
     except ValueError as e:

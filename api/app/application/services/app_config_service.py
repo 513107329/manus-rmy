@@ -1,3 +1,8 @@
+from app.interface.schemas.base import ListA2AServerResponse
+from app.interface.schemas.base import ListA2AServerItem
+from app.domain.models import app_config
+from app.domain.models.app_config import App_Config
+from app.domain.models.app_config import A2A_ServerConfig
 from app.domain.services.tools.mcp import McpClientManager
 from app.interface.schemas.base import ListMCPServerItem
 from typing import List
@@ -5,19 +10,20 @@ from app.domain.models.app_config import Mcp_Config
 from app.domain.models.app_config import Agent_Config
 from app.domain.models.app_config import LLM_Config
 from app.domain.repositories.app_config_repository import AppConfigRepository
+from app.domain.services.tools.a2a import A2AClientManager
 
 
 class AppConfigService:
     def __init__(self, app_config_repository: AppConfigRepository):
         self.app_config_repository = app_config_repository
 
-    def get_app_config(self):
+    def get_app_config(self) -> App_Config:
         return self.app_config_repository.load()
 
-    def get_llm_config(self):
+    def get_llm_config(self) -> LLM_Config:
         return self.get_app_config().llm_config
 
-    def get_agent_config(self):
+    def get_agent_config(self) -> Agent_Config:
         return self.get_app_config().agent_config
 
     async def get_mcp_servers(self) -> List[ListMCPServerItem]:
@@ -78,3 +84,63 @@ class AppConfigService:
         app_config.mcp_config.mcpServers[server_name].enabled = enable
         self.app_config_repository.save(app_config)
         return app_config.mcp_config
+
+    async def get_a2a_servers(self) -> ListA2AServerResponse:
+        a2a_config = self.get_app_config().a2a_config
+        a2a_servers = []
+        a2a_client_manager = A2AClientManager(a2a_config)
+        try:
+            await a2a_client_manager.initialize()
+            for id, agent_card in a2a_client_manager.agent_cards.items():
+                a2a_servers.append(
+                    ListA2AServerItem(
+                        id=id,
+                        name=agent_card.get("name"),
+                        description=agent_card.get("description"),
+                        input_modes=agent_card.get("defaultInputModes"),
+                        output_modes=agent_card.get("defaultOutputModes"),
+                        streamable=agent_card.get("capabilities", {}).get(
+                            "streaming", False
+                        ),
+                        push_notifications=agent_card.get("capabilities", {}).get(
+                            "push_notifications", False
+                        ),
+                        enabled=agent_card.get("enabled", False),
+                    )
+                )
+        finally:
+            await a2a_client_manager.cleanup()
+        return {"a2a_servers": a2a_servers}
+
+    def create_a2a_server(self, base_url: str):
+        app_config = self.get_app_config()
+        app_config.a2a_config.a2a_servers.append(A2A_ServerConfig(base_url=base_url))
+        self.app_config_repository.save(app_config)
+        return app_config.a2a_config
+
+    def delete_a2a_server(self, id: str):
+        app_config = self.get_app_config()
+        a2a_servers = app_config.a2a_config.a2a_servers
+
+        # 查找并删除
+        for i, server in enumerate(a2a_servers):
+            if server.id == id:
+                a2a_servers.pop(i)
+                self.app_config_repository.save(app_config)
+                return app_config.a2a_config
+
+        raise ValueError(f"A2A服务 {id} 不存在")
+
+    def enable_a2a_server(self, id: str, enable: bool):
+        app_config = self.get_app_config()
+        a2a_servers = app_config.a2a_config.a2a_servers
+
+        # 查找目标服务器
+        server = next((s for s in a2a_servers if s.id == id), None)
+
+        if not server:
+            raise ValueError(f"A2A服务 {id} 不存在")
+
+        server.enabled = enable
+        self.app_config_repository.save(app_config)
+        return app_config.a2a_config
