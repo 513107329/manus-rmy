@@ -1,3 +1,10 @@
+from app.domain.services.tools.base import BaseTool
+from typing import List
+from app.domain.external.json_parser import JSONParser
+from app.domain.models.app_config import Agent_Config
+from app.domain.external.llm import LLM
+from app.domain.models.memory import Memory
+from app.domain.repositories.session_repository import SessionRepository
 from app.domain.models.file import File
 from app.domain.services.prompts.react import SUMMARY_PROMPT
 from app.domain.models.event import ErrorEvent
@@ -14,14 +21,34 @@ from typing import AsyncGenerator
 from app.domain.services.prompts.react import SYSTEM_REACT_PROMPT
 from app.domain.services.prompts.system import SYSTEM_PROMPT
 from typing import Optional
-from pydantic import BaseModel
+from app.domain.services.agents.base import BaseAgent
 
 
-class ReActAgent(BaseModel):
+class ReActAgent(BaseAgent):
     _name = "reacter"
     _system_prompt = SYSTEM_PROMPT + SYSTEM_REACT_PROMPT
     _format: Optional[str] = "json_object"
     _tool_choice: Optional[str] = None
+
+    def __init__(
+        self,
+        session_id: str,
+        session_repository: SessionRepository,
+        agent_config: Agent_Config,
+        llm: LLM,
+        memory: Memory,
+        json_parser: JSONParser,
+        tools: List[BaseTool],
+    ) -> None:
+        super().__init__(
+            session_id,
+            session_repository,
+            agent_config,
+            llm,
+            memory,
+            json_parser,
+            tools,
+        )
 
     async def exucuteStep(
         self, plan: Plan, step: Step, messge: Message

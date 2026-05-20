@@ -1,3 +1,4 @@
+from app.domain.repositories.session_repository import SessionRepository
 from app.domain.models.event import StepEventStatus
 from app.domain.services.prompts.plan import UPDATE_PLAN_PROMPT
 from app.domain.models.plan import Step, Plan
@@ -41,13 +42,23 @@ class PlannerAgent(BaseAgent):
 
     def __init__(
         self,
+        session_id: str,
+        session_repository: SessionRepository,
         agent_config: Agent_Config,
         llm: LLM,
         memory: Memory,
         json_parser: JSONParser,
         tools: List[BaseTool],
     ) -> None:
-        super().__init__(agent_config, llm, memory, json_parser, tools)
+        super().__init__(
+            session_id,
+            session_repository,
+            agent_config,
+            llm,
+            memory,
+            json_parser,
+            tools,
+        )
 
     async def createPlan(self, message: Message) -> AsyncGenerator[Event, None]:
         query = CREATE_PLAN_PROMPT.format(
