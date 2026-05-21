@@ -1,3 +1,10 @@
+from core.config import get_settings
+from app.infrastructure.storage.tos import get_tos
+from app.infrastructure.storage.tos import Tos
+from app.domain.repositories import file_repository
+from app.application.services.file_service import FileService
+from app.infrastructure.external.file_storage.tos_file_storage import TosFileStorage
+from app.infrastructure.repositories.db_file_repository import DBFileRespository
 from app.infrastructure.repositories.db_session_repository import DbSessionRepository
 from app.infrastructure.external.health_checker.postgres_checker import (
     PostgresHealthChecker,
@@ -23,10 +30,17 @@ def get_app_config_service() -> AppConfigService:
 
 
 @lru_cache()
-def get_db_session_repository(
+def get_file_service(
+    tos: Tos = Depends(get_tos),
     db_session: AsyncSession = Depends(get_db_session),
-) -> DbSessionRepository:
-    return DbSessionRepository(db_session)
+) -> FileService:
+    settings = get_settings()
+    print(settings)
+    file_repository = DBFileRespository(db_session)
+    file_storage = TosFileStorage(
+        file_repository=file_repository, bucket=settings.tos_bucket, tos=tos
+    )
+    return FileService(file_repository=file_repository, fileStorage=file_storage)
 
 
 @lru_cache(maxsize=1)

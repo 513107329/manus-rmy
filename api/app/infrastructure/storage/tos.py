@@ -7,9 +7,8 @@ logger = logging.getLogger(__name__)
 
 
 class Tos:
-
     def __init__(self):
-        self._client = None
+        self._client: TosClientV2 = None
         self._setting = get_settings()
 
     def init(self):
@@ -18,6 +17,7 @@ class Tos:
             return
 
         try:
+            print(self._setting)
             ak = self._setting.tos_access_key
             sk = self._setting.tos_secret_key
             endpoint = self._setting.tos_endpoint

@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     tos_secret_key: str = ""
     tos_endpoint: str = ""
     tos_region: str = ""
+    tos_bucket: str = ""
 
     # Sandbox配置
     sandbox_address: Optional[str] = None

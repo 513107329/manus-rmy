@@ -10,10 +10,9 @@ class FlowStatus(str, Enum):
     IDLE = "idle"
     PLANNING = "planning"
     EXECUTING = "executing"
-    SUMMARIZING = "summarizing"
     UPDATING = "updating"
+    SUMMARIZING = "summarizing"
     COMPLETED = "completed"
-    FAILED = "failed"
 
 
 class BaseFlow(ABC):

@@ -1,5 +1,5 @@
 from app.domain.models.event import PlanEvent
-from sqlalchemy.types import Enum
+from enum import Enum
 from app.domain.models.plan import Plan
 from datetime import datetime
 from app.domain.models.memory import Memory
@@ -15,7 +15,9 @@ from pydantic import BaseModel
 
 class SessionStatus(str, Enum):
     PENDING = "pending"
-    INACTIVE = "inactive"
+    RUNNING = "running"
+    WAITING = "waiting"
+    COMPLETED = "completed"
 
 
 class Session(BaseModel):
