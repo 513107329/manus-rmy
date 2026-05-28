@@ -18,7 +18,7 @@ def register_exception_handlers(app: FastAPI):
             status_code=e.status_code,
             content=Response(
                 code=e.code,
-                msg=e.msg,
+                message=e.msg,
                 data={},
             ).model_dump(),
         )
@@ -30,7 +30,7 @@ def register_exception_handlers(app: FastAPI):
             status_code=e.status_code,
             content=Response(
                 code=e.status_code,
-                msg=e.detail,
+                message=e.detail,
                 data={},
             ).model_dump(),
         )
@@ -42,7 +42,7 @@ def register_exception_handlers(app: FastAPI):
             status_code=500,
             content=Response(
                 code=500,
-                msg="服务器内部错误，请稍后重试",
+                message="服务器内部错误，请稍后重试",
                 data={},
             ).model_dump(),
         )

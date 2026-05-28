@@ -45,7 +45,7 @@ class RedisStreamTask(Task):
     def _cleanup_registry(self):
         if self._id in RedisStreamTask._task_registry:
             del RedisStreamTask._task_registry[self._id]
-            logger.info(f"Error executing task: {e}")
+            logger.info(f"任务{str(self._id)}已从注册表中移除")
 
     async def _on_task_done(self) -> None:
         """任务结束时的回调函数"""

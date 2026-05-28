@@ -1,3 +1,5 @@
+from app.infrastructure.repositories.db_uow import DBUnitOfWork
+from app.domain.repositories.uow import IUnitOfWork
 from typing import Optional
 import logging
 from core.config import get_settings
@@ -63,8 +65,7 @@ def get_postgres() -> Postgres:
 
 
 async def get_db_session() -> AsyncSession:
-    db = get_postgres()
-    session_factory = db.session_factory
+    session_factory = get_session_factory()
 
     async with session_factory() as session:
         try:
@@ -73,3 +74,11 @@ async def get_db_session() -> AsyncSession:
         except Exception as _:
             await session.rollback()
             raise
+
+
+def get_session_factory():
+    return get_postgres().session_factory
+
+
+def get_uow() -> IUnitOfWork:
+    return DBUnitOfWork(get_session_factory())

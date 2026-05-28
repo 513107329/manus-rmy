@@ -1,3 +1,5 @@
+from typing import Annotated
+from app.domain.models.search import SearchResultItem
 from app.domain.models.tool_result import ToolResult
 from typing import Dict
 from typing import Optional
@@ -77,13 +79,44 @@ class BrowserToolContent(BaseModel):
     url: str = ""  # 浏览器URL
 
 
+class SearchToolContent(BaseModel):
+    """搜索工具内容"""
+
+    results: List[SearchResultItem] = Field(default_factory=list)  # 搜索结果
+
+
+class ShellToolContent(BaseModel):
+    """Shell工具内容"""
+
+    console: Any = ""  # Shell工具执行结果
+
+
+class FileToolContent(BaseModel):
+    """文件工具内容"""
+
+    content: str = ""  # 文件内容
+
+
 class MCPToolContent(BaseModel):
     """MCP工具内容"""
 
     result: Any
 
 
-ToolContent = Union[BrowserToolContent, MCPToolContent]
+class A2AToolContent(BaseModel):
+    """A2A智能体内容"""
+
+    a2a_result: Any
+
+
+ToolContent = Union[
+    BrowserToolContent,
+    SearchToolContent,
+    ShellToolContent,
+    FileToolContent,
+    MCPToolContent,
+    A2AToolContent,
+]
 
 
 class ToolEventStatus(str, Enum):
@@ -125,13 +158,16 @@ class DoneEvent(BaseEvent):
     type: Literal["done"] = "done"  # 事件类型
 
 
-Event = Union[
-    PlanEvent,
-    TitleEvent,
-    StepEvent,
-    MessageEvent,
-    ToolEvent,
-    WaitEvent,
-    ErrorEvent,
-    DoneEvent,
+Event = Annotated[
+    Union[
+        PlanEvent,
+        TitleEvent,
+        StepEvent,
+        MessageEvent,
+        ToolEvent,
+        WaitEvent,
+        ErrorEvent,
+        DoneEvent,
+    ],
+    Field(discriminator="type"),
 ]

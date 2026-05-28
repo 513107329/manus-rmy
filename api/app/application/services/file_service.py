@@ -1,8 +1,9 @@
+from app.domain.repositories.uow import IUnitOfWork
+from typing import Callable
 import logging
 from typing import BinaryIO
 from typing import Tuple
 from fastapi import UploadFile
-from app.domain.repositories.file_repository import FileRepository
 from app.domain.external.file_storage import FileStorage
 from app.domain.models.file import File
 
@@ -10,17 +11,22 @@ logger = logging.getLogger(__name__)
 
 
 class FileService:
-    def __init__(self, fileStorage: FileStorage, file_repository: FileRepository):
+    def __init__(
+        self, fileStorage: FileStorage, uow_factory: Callable[[...], IUnitOfWork]
+    ):
         self.file_storage = fileStorage
-        self.file_repository = file_repository
+        self.uow_factory = uow_factory
+        self.uow: IUnitOfWork = uow_factory()
 
     async def upload_file(self, file: UploadFile) -> File:
-        logger
+        logger.info(f"上传文件: {file.filename}")
         result = await self.file_storage.upload_file(file)
+        logger.info(f"文件上传成功: {result}")
         return result
 
     async def get_file_info(self, file_id: str) -> File:
-        file = await self.file_repository.get_file_by_id(file_id)
+        async with self.uow:
+            file = await self.uow.file.get_file_by_id(file_id)
 
         if not file:
             raise ValueError(f"找不到此文件")

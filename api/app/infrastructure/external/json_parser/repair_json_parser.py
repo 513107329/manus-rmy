@@ -14,7 +14,7 @@ class RepairJsonParser(JSONParser):
                 return default_value
             raise ValueError("Input text is empty")
         try:
-            return repair_json(text, ensure_ascii=False)
+            return repair_json(text, ensure_ascii=False, return_objects=True)
         except Exception as e:
             logger.error(f"Error repairing JSON: {e}")
             if default_value is not None:

@@ -1,5 +1,10 @@
+from app.interface.endpoints import (
+    session_routes,
+    status_routes,
+    app_config_routes,
+    file_routes,
+)
 from fastapi import APIRouter
-from . import status_routes, app_config_routes, file_routes
 
 
 def create_routes() -> APIRouter:
@@ -7,6 +12,7 @@ def create_routes() -> APIRouter:
     router.include_router(status_routes.router)
     router.include_router(app_config_routes.router)
     router.include_router(file_routes.router)
+    router.include_router(session_routes.router)
     return router
 
 

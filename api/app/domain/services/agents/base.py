@@ -1,4 +1,5 @@
-from app.domain.repositories.session_repository import SessionRepository
+from typing import Callable
+from app.domain.repositories.uow import IUnitOfWork
 from app.domain.models.event import MessageEvent
 from app.domain.models.event import ErrorEvent
 from app.domain.models.event import ToolEventStatus
@@ -36,7 +37,7 @@ class BaseAgent(ABC):
     def __init__(
         self,
         session_id: str,
-        session_repository: SessionRepository,
+        uow_factory: Callable[[], IUnitOfWork],
         agent_config: Agent_Config,
         llm: LLM,
         memory: Memory,
@@ -44,7 +45,8 @@ class BaseAgent(ABC):
         tools: List[BaseTool],
     ) -> None:
         self._session_id = session_id
-        self._session_repository = session_repository
+        self.uow_factory = uow_factory
+        self.uow: IUnitOfWork = uow_factory()
         self._agent_config = agent_config
         self._llm = llm
         self._memory: Memory = memory
@@ -62,9 +64,10 @@ class BaseAgent(ABC):
                 }
             )
         self._memory.add_messages(messages)
-        await self._session_repository.save_memory(
-            self._session_id, self.name, self._memory
-        )
+        async with self.uow:
+            await self.uow.session.save_memory(
+                self._session_id, self.name, self._memory
+            )
 
     def _get_tool(self, function_name: str) -> Optional[BaseTool]:
         """获取工具"""
@@ -76,9 +79,10 @@ class BaseAgent(ABC):
     async def _ensure_memory(self) -> None:
         """确保记忆已加载"""
         if self._memory is None:
-            self._memory = await self._session_repository.get_memory(
-                self._session_id, self.name
-            )
+            async with self.uow:
+                self._memory = await self.uow.session.get_memory(
+                    self._session_id, self.name
+                )
 
     def _get_available_tools(self) -> List[Dict[str, Any]]:
         """获取可用工具"""
@@ -91,9 +95,10 @@ class BaseAgent(ABC):
         """压缩记忆"""
         await self._ensure_memory()
         self._memory.compact()
-        await self._session_repository.save_memory(
-            self._session_id, self.name, self._memory
-        )
+        async with self.uow:
+            await self.uow.session.save_memory(
+                self._session_id, self.name, self._memory
+            )
 
     async def _invoke_tool(
         self, tool: BaseTool, tool_name: str, tool_args: Dict[str, Any]
@@ -140,6 +145,10 @@ class BaseAgent(ABC):
                         "role": "assistant",
                         "content": message.get("content"),
                     }
+                    if message.get("reasoning_content"):
+                        filter_message["reasoning_content"] = message.get(
+                            "reasoning_content"
+                        )
                     if message.get("tool_calls"):
                         filter_message["tool_calls"] = message.get("tool_calls")[:1]
 
@@ -231,6 +240,7 @@ class BaseAgent(ABC):
         else:
             self._memory.rollback_memory()
 
-        await self._session_repository.save_memory(
-            self._session_id, self.name, self._memory
-        )
+        async with self.uow:
+            await self.uow.session.save_memory(
+                self._session_id, self.name, self._memory
+            )

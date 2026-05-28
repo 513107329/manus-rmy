@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 
 class TaskRunner(ABC):
     @abstractmethod
-    async def run(self, task: Task):
+    async def invoke(self, task: Task):
         raise NotImplementedError
 
     @abstractmethod

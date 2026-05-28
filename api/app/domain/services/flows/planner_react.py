@@ -1,3 +1,5 @@
+from app.domain.repositories.uow import IUnitOfWork
+from typing import Callable
 from app.domain.models.plan import ExecutionStatus
 from app.domain.models.event import MessageEvent
 from app.domain.models.event import TitleEvent
@@ -28,7 +30,6 @@ from app.domain.services.flows.base import BaseFlow
 from app.domain.models.event import BaseEvent
 from typing import AsyncGenerator
 from app.domain.models.message import Message
-from app.domain.repositories.session_repository import SessionRepository
 from app.domain.services.tools.message import MessageTool
 
 logger = logging.getLogger(__name__)
@@ -41,15 +42,16 @@ class PlannerReactFlow(BaseFlow):
         agent_config: Agent_Config,
         json_parser: JSONParser,
         session_id: str,
-        session_repository: SessionRepository,
         sandbox: Sandbox,
         browser: Browser,
         search_engine: SearchEngine,
         mcpTool: McpTool,
         a2sTool: A2ATool,
+        uow_factory: Callable[[...], IUnitOfWork],
     ):
         self.session_id = session_id
-        self.session_repository = session_repository
+        self.uow_factory = uow_factory
+        self.uow: IUnitOfWork = uow_factory()
         self.status = FlowStatus.IDLE
         self.plan: Optional[Plan] = None
 
@@ -65,7 +67,7 @@ class PlannerReactFlow(BaseFlow):
 
         self.planner = PlannerAgent(
             session_id=session_id,
-            session_repository=session_repository,
+            uow_factory=uow_factory,
             tools=tools,
             llm=llm,
             agent_config=agent_config,
@@ -74,7 +76,7 @@ class PlannerReactFlow(BaseFlow):
 
         self.react = ReActAgent(
             session_id=session_id,
-            session_repository=session_repository,
+            uow_factory=uow_factory,
             tools=tools,
             llm=llm,
             agent_config=agent_config,
@@ -82,7 +84,8 @@ class PlannerReactFlow(BaseFlow):
         )
 
     async def invoke(self, message: Message) -> AsyncGenerator[BaseEvent, None]:
-        session = self.session_repository.get_by_id(self.session_id)
+        async with self.uow:
+            session = await self.uow.session.get_by_id(self.session_id)
         if session is None:
             raise ValueError("Session not found")
 
@@ -102,9 +105,8 @@ class PlannerReactFlow(BaseFlow):
             logger.debug("会话处于等待中状态，修改状态为执行中")
             self.status = FlowStatus.EXECUTING
 
-        await self.session_repository.update_status(
-            self.session_id, SessionStatus.RUNNING
-        )
+        async with self.uow:
+            await self.uow.session.update_status(self.session_id, SessionStatus.RUNNING)
 
         self.plan = session.get_latest_plan()
 
@@ -155,7 +157,7 @@ class PlannerReactFlow(BaseFlow):
             elif self.status == FlowStatus.COMPLETED:
                 self.plan.status = ExecutionStatus.COMPLETED
                 self.status = FlowStatus.IDLE
-                yield PlanEvent(status=ExecutionStatus.COMPLETED, plan=self.plan)
+                yield PlanEvent(status=PlanEventStatus.COMPLETED, plan=self.plan)
                 break
 
         yield DoneEvent(status=FlowStatus.IDLE)

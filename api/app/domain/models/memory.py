@@ -39,11 +39,11 @@ class Memory(BaseModel):
         """回滚记忆，删除最后一条消息"""
         self.messages = self.messages[:-1]
 
-    def compress_memory(self) -> None:
+    def compact(self) -> None:
         """记忆压缩，将记忆中已经执行的工具、搜索、网页源码获取这类已经执行过的消息压缩简化"""
         for message in self.messages:
             if self.get_role_info(message) == "tool":
-                if message.get("tool_name") in []:
+                if message.get("tool_name") in ["browser_view", "browser_navigate"]:
                     message["content"] = "(Removed)"
                     logger.debug(
                         f"从记忆中移除对应工具的结果: {message.get('tool_name')}"

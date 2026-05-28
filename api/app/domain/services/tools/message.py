@@ -18,7 +18,7 @@ class MessageTool(BaseTool):
         required=["text"],
     )
     async def message_notify_user(self, text: str) -> ToolResult:
-        return ToolResult(success=True, data="Continue")
+        return ToolResult(success=True, data=text)
 
     @tool(
         name="message_ask_user",

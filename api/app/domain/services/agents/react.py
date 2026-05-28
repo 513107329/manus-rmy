@@ -1,10 +1,12 @@
+from app.domain.repositories.uow import IUnitOfWork
+from typing import Callable
+from app.domain.models.event import WaitEvent
 from app.domain.services.tools.base import BaseTool
 from typing import List
 from app.domain.external.json_parser import JSONParser
 from app.domain.models.app_config import Agent_Config
 from app.domain.external.llm import LLM
 from app.domain.models.memory import Memory
-from app.domain.repositories.session_repository import SessionRepository
 from app.domain.models.file import File
 from app.domain.services.prompts.react import SUMMARY_PROMPT
 from app.domain.models.event import ErrorEvent
@@ -33,8 +35,8 @@ class ReActAgent(BaseAgent):
     def __init__(
         self,
         session_id: str,
-        session_repository: SessionRepository,
         agent_config: Agent_Config,
+        uow_factory: Callable[[...], IUnitOfWork],
         llm: LLM,
         memory: Memory,
         json_parser: JSONParser,
@@ -42,7 +44,7 @@ class ReActAgent(BaseAgent):
     ) -> None:
         super().__init__(
             session_id,
-            session_repository,
+            uow_factory,
             agent_config,
             llm,
             memory,
@@ -66,9 +68,16 @@ class ReActAgent(BaseAgent):
 
         async for event in self.invoke(query):
             if isinstance(event, ToolEvent):
-                if event.function_name == "message_call":
+                if event.function_name == "message_ask_user":
                     if event.status == ToolEventStatus.CALLING:
-                        
+                        yield MessageEvent(
+                            role="assistant",
+                            message=event.function_args.get("text", ""),
+                        )
+                    elif event.status == ToolEventStatus.CALLED:
+                        yield WaitEvent()
+                        return
+                    continue
             elif isinstance(event, MessageEvent):
                 step.status = ExecutionStatus.COMPLETED
                 parsed_obj = await self._json_parser.invoke(event.message)
@@ -90,7 +99,7 @@ class ReActAgent(BaseAgent):
                 yield StepEvent(step=step, status=StepEventStatus.FAILED)
             else:
                 yield event
-        
+
         step.status = ExecutionStatus.COMPLETED
         yield StepEvent(step=step, status=StepEventStatus.COMPLETED)
 
@@ -101,7 +110,11 @@ class ReActAgent(BaseAgent):
             if isinstance(event, MessageEvent):
                 parsed_obj = await self._json_parser.invoke(event.message)
                 message = Message.model_validate(parsed_obj)
-                attachments = [File(filepath=filepath) for filepath in message.attachments]
-                yield MessageEvent(role="assistant", message=message.message, attachments=attachments)
+                attachments = [
+                    File(filepath=filepath) for filepath in message.attachments
+                ]
+                yield MessageEvent(
+                    role="assistant", message=message.message, attachments=attachments
+                )
             else:
                 yield event

@@ -1,3 +1,4 @@
+from typing import Self
 from fastapi import UploadFile
 import logging
 from app.domain.models.tool_result import ToolResult
@@ -6,7 +7,6 @@ from app.domain.external.browser import Browser
 import uuid
 from socket import socket
 import asyncio
-from typing import _Self
 from core.config import get_settings
 import httpx
 from typing import Optional
@@ -73,7 +73,7 @@ class DockerSandbox(Sandbox):
         return ip
 
     @classmethod
-    def _create_task(cls) -> _Self:
+    def _create_task(cls) -> Self:
         settings = get_settings()
 
         image = settings.sandbox_image
@@ -114,7 +114,7 @@ class DockerSandbox(Sandbox):
             raise Exception(f"Failed to create sandbox: {e}")
 
     @classmethod
-    async def create(cls) -> _Self:
+    async def create(cls) -> Self:
         settings = get_settings()
 
         if settings.sandbox_address:
@@ -137,7 +137,7 @@ class DockerSandbox(Sandbox):
             raise Exception(f"Failed to destroy sandbox: {e}")
 
     @classmethod
-    async def get(cls, id: str) -> _Self:
+    async def get(cls, id: str) -> Self:
         settings = get_settings()
         if settings.sandbox_address:
             ip = await cls._resolve_hostname_to_ip(settings.sandbox_address)

@@ -185,7 +185,7 @@ class FileTool(BaseTool):
         glob_pattern: str,
     ) -> ToolResult:
         return await self.sandbox.file_find(
-            dir_path=dir_path,
+            dirpath=dir_path,
             glob_pattern=glob_pattern,
         )
 
@@ -205,5 +205,5 @@ class FileTool(BaseTool):
         dir_path: str,
     ) -> ToolResult:
         return await self.sandbox.file_list(
-            dir_path=dir_path,
+            dirpath=dir_path,
         )

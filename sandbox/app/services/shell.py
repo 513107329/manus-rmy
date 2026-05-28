@@ -189,7 +189,6 @@ class ShellService:
                 if wait_result.returncode is not None:
                     logger.debug("Shell会话进程已结束")
                     view_result = await self.view_shell(session_id, console=False)
-                    print("session_id", view_result)
                     return ShellExecResult(
                         session_id=session_id,
                         command=command,

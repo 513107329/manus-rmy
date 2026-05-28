@@ -1,5 +1,5 @@
-from app.domain.repositories.session_repository import SessionRepository
-from app.domain.models.event import StepEventStatus
+from app.domain.repositories.uow import IUnitOfWork
+from typing import Callable
 from app.domain.services.prompts.plan import UPDATE_PLAN_PROMPT
 from app.domain.models.plan import Step, Plan
 from app.domain.models.event import PlanEventStatus
@@ -43,16 +43,16 @@ class PlannerAgent(BaseAgent):
     def __init__(
         self,
         session_id: str,
-        session_repository: SessionRepository,
         agent_config: Agent_Config,
         llm: LLM,
+        uow_factory: Callable[[...], IUnitOfWork],
         memory: Memory,
         json_parser: JSONParser,
         tools: List[BaseTool],
     ) -> None:
         super().__init__(
             session_id,
-            session_repository,
+            uow_factory,
             agent_config,
             llm,
             memory,

@@ -161,3 +161,7 @@ class A2ATool(BaseTool):
     )
     async def call_remote_agent(self, agent_id: str, query: str) -> ToolResult:
         return await self.manager.invoke(agent_id, query)
+
+    async def cleanup(self) -> None:
+        if self.manager:
+            await self.manager.cleanup()

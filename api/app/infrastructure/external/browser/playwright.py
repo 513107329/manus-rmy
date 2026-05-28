@@ -226,7 +226,7 @@ class PlayWrightBrowser(BrowserProtocol):
             logger.error(f"滚动失败: {e}")
             return ToolResult(success=False, message=f"滚动失败: {e}")
 
-    async def screen_shot(self, full_page: Optional[bool] = None) -> ToolResult:
+    async def screenshot(self, full_page: Optional[bool] = None) -> ToolResult:
         await self._ensure_page_exist()
         try:
             if full_page:

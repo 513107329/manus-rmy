@@ -1,3 +1,5 @@
+from typing import Callable
+from app.domain.repositories.uow import IUnitOfWork
 from typing import BinaryIO
 from typing import Tuple
 from fastapi.concurrency import run_in_threadpool
@@ -5,7 +7,6 @@ from datetime import datetime
 import uuid
 from fastapi import UploadFile
 from app.infrastructure.storage.tos import Tos
-from app.domain.repositories.file_repository import FileRepository
 import logging
 import os
 from app.domain.external.file_storage import FileStorage
@@ -15,10 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 class TosFileStorage(FileStorage):
-    def __init__(self, bucket: str, tos: Tos, file_repository: FileRepository) -> None:
+    def __init__(
+        self, bucket: str, tos: Tos, uow_factory: Callable[[], IUnitOfWork]
+    ) -> None:
         self.bucket = bucket
         self.tos = tos
-        self.file_repository = file_repository
+        self.uow_factory = uow_factory
+        self.uow: IUnitOfWork = uow_factory()
 
     async def upload_file(self, uploadFile: UploadFile) -> File:
         try:
@@ -45,7 +49,8 @@ class TosFileStorage(FileStorage):
                 mime_type=uploadFile.content_type or "",
                 size=uploadFile.size,
             )
-            await self.file_repository.save(file)
+            async with self.uow:
+                await self.uow.file.save(file)
 
             return file
         except Exception as e:
@@ -54,9 +59,10 @@ class TosFileStorage(FileStorage):
 
     async def download_file(self, file_id: str) -> Tuple[BinaryIO, File]:
         try:
-            file = await self.file_repository.get_file_by_id(file_id)
-            if not file:
-                raise ValueError(f"该文件不存在")
+            async with self.uow:
+                file = await self.uow.file.get_file_by_id(file_id)
+                if not file:
+                    raise ValueError(f"该文件不存在")
 
             response = await run_in_threadpool(
                 self.tos._client.get_object,

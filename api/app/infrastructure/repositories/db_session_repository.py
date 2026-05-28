@@ -71,14 +71,12 @@ class DbSessionRepository(SessionRepository):
         if result.rowcount == 0:
             raise ValueError(f"会话 {id} 不存在")
 
-    async def update_unread_message_count(
-        self, id: str, unread_message_count: int
-    ) -> None:
+    async def update_unread_message_count(self, id: str, unread_msg_count: int) -> None:
         """更新会话未读消息数"""
         stmt = (
             update(SessionModel)
             .where(SessionModel.id == id)
-            .values(unread_message_count=unread_message_count)
+            .values(unread_msg_count=unread_msg_count)
         )
         result = await self.db_session.execute(stmt)
         if result.rowcount == 0:

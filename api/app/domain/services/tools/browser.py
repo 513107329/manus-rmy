@@ -14,7 +14,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="browser_view",
         description="查看当前浏览器页面内容，用于确认已打开的页面的最新状态",
-        parameters={},
+        params={},
         required=[],
     )
     async def browser_view(self) -> ToolResult:
@@ -23,7 +23,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="browser_navigate",
         description="导航到指定URL",
-        parameters={
+        params={
             "url": {
                 "type": "string",
                 "description": "访问的完整URL，例如：https://www.baidu.com",
@@ -37,7 +37,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="browser_restart",
         description="重启浏览器",
-        parameters={
+        params={
             "url": {
                 "type": "string",
                 "description": "访问的完整URL，例如：https://www.baidu.com",
@@ -51,7 +51,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="browser_click",
         description="点击页面元素",
-        parameters={
+        params={
             "index": {
                 "type": "integer",
                 "description": "元素的索引",
@@ -78,7 +78,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="browser_input",
         description="填充页面元素",
-        parameters={
+        params={
             "index": {
                 "type": "integer",
                 "description": "元素的索引",
@@ -117,7 +117,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="move_mouse",
         description="移动鼠标到指定位置",
-        parameters={
+        params={
             "coordinate_x": {
                 "type": "number",
                 "description": "鼠标的x坐标",
@@ -139,7 +139,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="press_key",
         description="按下键盘按键",
-        parameters={
+        params={
             "key": {
                 "type": "string",
                 "description": "按下的按键",
@@ -156,7 +156,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="select_option",
         description="选择下拉框选项",
-        parameters={
+        params={
             "index": {
                 "type": "integer",
                 "description": "下拉框的索引",
@@ -178,7 +178,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="scroll_up",
         description="向上滚动页面",
-        parameters={
+        params={
             "to_up": {
                 "type": "boolean",
                 "description": "是否滚动到页面顶部",
@@ -195,7 +195,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="scroll_down",
         description="向下滚动页面",
-        parameters={
+        params={
             "to_down": {
                 "type": "boolean",
                 "description": "是否滚动到页面底部",
@@ -212,7 +212,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="browser_screenshot",
         description="截取当前浏览器页面",
-        parameters={},
+        params={},
         required=[],
     )
     async def browser_screenshot(self) -> ToolResult:
@@ -221,7 +221,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="console_exec",
         description="执行JavaScript代码",
-        parameters={
+        params={
             "javascript": {
                 "type": "string",
                 "description": "要执行的JavaScript代码",
@@ -238,7 +238,7 @@ class BrowserTool(BaseTool):
     @tool(
         name="console_view",
         description="查看控制台输出",
-        parameters={
+        params={
             "max_lines": {
                 "type": "integer",
                 "description": "最大行数",

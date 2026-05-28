@@ -36,7 +36,7 @@ class Plan(BaseModel):
     message: str = ""
     status: ExecutionStatus = ExecutionStatus.PENDING
     error: Optional[str] = None
-    steps: List[Any] = Field(default_factory=list)
+    steps: List[Step] = Field(default_factory=list)
     result: Optional[str] = None  # 最终结果
 
     @property

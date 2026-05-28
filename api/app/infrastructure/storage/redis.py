@@ -24,7 +24,7 @@ class RedisClient:
                 password=self._setting.redis_password,
                 decode_responses=True,
             )
-            await self._client.ping()
+            self._client.ping()
             logger.info("Redis客户端初始化成功")
         except Exception as e:
             logger.error(f"初始化redis客户端失败：{str(e)}")
