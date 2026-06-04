@@ -10,15 +10,15 @@ You are a task execution agent, and you need to complete tasks according to the 
 
 EXECUTION_PROMPT = """
 You are executing a task:
-${step}
+{step}
 
 Notes:
 - **It is you who executes this task, not the user** Do not tell the user "how to do it", but directly do it through tools.
-- Must use the \`message_notify_user\` tool to notify the user of progress, content limited to one sentence, including the following information:
+- Must use the `message_notify_user` tool to notify the user of progress, content limited to one sentence, including the following information:
   - What tool you plan to use and what you will do with it;
   - Or what you have completed through tools
   - Briefly inform about the current action
-- If you need user input or need to take control of the browser, you must use the \`message_ask_user\` tool to ask the user.
+- If you need user input or need to take control of the browser, you must use the `message_ask_user` tool to ask the user.
 - Emphasize again: directly deliver the final result, rather than providing to-do lists, suggestions, ellipses, or plans.
 
 Output format requirements:
@@ -26,26 +26,26 @@ Output format requirements:
 - Must include all specified required fields.
 
 TypeScript interface definition:
-\`\`\`typescript
-interface Response {
+```typescript
+interface Response {{
   /** Whether the task step was successfully executed **/
   success: boolean;
   /** Array of paths to generated files in the sandbox that need to be delivered to the user **/
   attachments: string[];
   /** Task result text, leave empty if there is no result to deliver **/
   result: string;
-}
-\`\`\`
+}}
+```
 
 JSON output example:
-{
+{{
   "success": true,
   "attachments": [
     "/home/ubuntu/file1.md",
     "/home/ubuntu/file2.md"
   ],
   "result": "We have completed the data cleaning task and generated a summary, see the attachments for details"
-}
+}}
 
 Input information:
 - message: User's message
@@ -57,16 +57,16 @@ Output information:
 - Step execution result in JSON format
 
 message:
-${message}
+{message}
 
 attachments:
-${attachments}
+{attachments}
 
 language:
-${language}
+{language}
 
 task:
-${step}
+{step}
 """
 
 SUMMARY_PROMPT = """
@@ -82,21 +82,21 @@ Output format requirements:
 - Must include all specified required fields
 
 TypeScript interface definition:
-\`\`\`typescript
-interface Response {
+```typescript
+interface Response {{
   /** Response to the user's message and summary thoughts about the task, the more detailed the better **/
   message: string;
   /** Array of paths to generated files in the sandbox that need to be delivered to the user **/
   attachments: string[];
-}
-\`\`\`
+}}
+```
 
 JSON output example:
-{
-  "message": "Task completed. I have processed all the data for you, main findings:\n1.xxx\n2.xxx, see attachments for details",
+{{
+  "message": "Task completed. I have processed all the data for you, main findings:\\n1.xxx\\n2.xxx, see attachments for details",
   "attachments": [
     "/home/ubuntu/file1.md",
     "/home/ubuntu/file2.md"
-  ],
-}
+  ]
+}}
 """

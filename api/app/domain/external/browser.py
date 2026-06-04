@@ -1,10 +1,8 @@
-from sqlalchemy import true
-from typing import Optional
+from typing import Optional, Protocol
 from app.domain.models.tool_result import ToolResult
-from pydantic import BaseModel
 
 
-class Browser(BaseModel):
+class Browser(Protocol):
     """浏览器服务扩展，涵盖：访问页面、URL跳转、输入框填充、移动鼠标、截图等操作"""
 
     async def view_page(self) -> ToolResult: ...

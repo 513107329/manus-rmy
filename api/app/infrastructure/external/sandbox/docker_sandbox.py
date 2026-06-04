@@ -5,10 +5,10 @@ from app.domain.models.tool_result import ToolResult
 from app.infrastructure.external.browser.playwright import PlayWrightBrowser
 from app.domain.external.browser import Browser
 import uuid
-from socket import socket
 import asyncio
 from core.config import get_settings
 import httpx
+import socket
 from typing import Optional
 from app.domain.external.sandbox import Sandbox
 from async_lru import alru_cache
@@ -43,7 +43,7 @@ class DockerSandbox(Sandbox):
 
     @classmethod
     @alru_cache(maxsize=128, typed=True)
-    async def _resolve_hostname_to_ip(self, hostname: str) -> str:
+    async def _resolve_hostname_to_ip(cls, hostname: str) -> str:
         try:
             try:
                 socket.inet_pton(socket.AF_INET, hostname)
@@ -87,7 +87,7 @@ class DockerSandbox(Sandbox):
                 "name": container_name,
                 "detach": True,
                 "remove": True,
-                "environemnt": {
+                "environment": {
                     "SERVICE_TIMEOUT_MINUTES": settings.sandbox_ttl_minutes,
                     "CHROME_ARGS": settings.sandbox_chrome_args,
                     "HTTPS_PROXY": settings.sandbox_https_proxy,
@@ -100,7 +100,6 @@ class DockerSandbox(Sandbox):
                         "mode": "rw",
                     }
                 },
-                "command": "/usr/bin/google-chrome --remote-debugging-port=9222 --no-sandbox",
             }
 
             if settings.sandbox_network:
@@ -108,9 +107,12 @@ class DockerSandbox(Sandbox):
 
             container = client.containers.run(**container_config)
             container.reload()
+            logger.info(f"Sandbox container {container_name} created")
             ip = cls._get_container_ip(container)
+            logger.info(f"Sandbox container {container_name} IP: {ip}")
             return cls(ip=ip, container_name=container_name)
         except Exception as e:
+            logger.error(f"Failed to create sandbox: {e}")
             raise Exception(f"Failed to create sandbox: {e}")
 
     @classmethod
@@ -137,18 +139,44 @@ class DockerSandbox(Sandbox):
             raise Exception(f"Failed to destroy sandbox: {e}")
 
     @classmethod
-    async def get(cls, id: str) -> Self:
+    async def get(cls, id: str) -> Optional[Self]:
         settings = get_settings()
         if settings.sandbox_address:
-            ip = await cls._resolve_hostname_to_ip(settings.sandbox_address)
-            return cls(ip=ip, container_name=id)
+            try:
+                ip = await cls._resolve_hostname_to_ip(settings.sandbox_address)
+                return cls(ip=ip, container_name=settings.sandbox_name_prefix)
+            except Exception as e:
+                logger.error(f"Failed to get sandbox: {e}")
+                return None
+
         try:
-            container = docker.from_env().containers.get(id)
-            container.reload()
-            ip = cls._get_container_ip(container)
-            return cls(ip=ip, container_name=id)
+            docker_client = docker.from_env()
+            try:
+                container = docker_client.containers.get(id)
+                container.reload()
+
+                if container.status != "running":
+                    logger.error(f"Sandbox container {id} is not running")
+                    return None
+
+                ip = cls._get_container_ip(container)
+
+                if not ip:
+                    logger.error(f"Sandbox container {id} has no IP address")
+                    return None
+
+                return cls(ip=ip, container_name=id)
+            except docker.errors.NotFound:
+                logger.error(f"Sandbox container {id} not found")
+                return None
+            except docker.errors.APIError as e:
+                logger.error(f"Failed to get sandbox: {e}")
+                return None
+            finally:
+                docker_client.close()
         except Exception as e:
-            raise Exception(f"Failed to get sandbox: {e}")
+            logger.error(f"Failed to get sandbox: {e}")
+            return None
 
     async def get_browser(self) -> Browser:
         return PlayWrightBrowser(self.cdp_url)

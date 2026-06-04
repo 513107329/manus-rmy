@@ -1,6 +1,5 @@
 from typing import Optional
 from typing import List
-from typing import Any
 import uuid
 from pydantic import Field
 from pydantic import BaseModel
@@ -17,7 +16,7 @@ class ExecutionStatus(str, Enum):
 class Step(BaseModel):
     """计划中的每一个步骤/子任务"""
 
-    id: str = Field(default_factory=lambda: str(uuid.uuidv4()))
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     description: str = ""  # 子任务描述信息
     status: ExecutionStatus = ExecutionStatus.PENDING
     result: Optional[str] = None  # 结果
@@ -25,11 +24,15 @@ class Step(BaseModel):
     success: bool = False  # 是否执行成功
     attachments: Optional[List[str]] = None  # 附件列表
 
+    @property
+    def done(self) -> bool:
+        return self.status in [ExecutionStatus.COMPLETED, ExecutionStatus.FAILED]
+
 
 class Plan(BaseModel):
     """规划Domain模型，存储用户传递消息拆分出来的子任务、子步骤"""
 
-    id: str = Field(default_factory=lambda: str(uuid.uuidv4()))
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     title: str = ""
     goal: str = ""
     language: str = ""

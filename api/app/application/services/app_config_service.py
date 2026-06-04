@@ -11,8 +11,9 @@ from app.domain.models.app_config import Agent_Config
 from app.domain.models.app_config import LLM_Config
 from app.domain.repositories.app_config_repository import AppConfigRepository
 from app.domain.services.tools.a2a import A2AClientManager
+import logging
 
-
+logger = logging.getLogger(__name__)
 class AppConfigService:
     def __init__(self, app_config_repository: AppConfigRepository):
         self.app_config_repository = app_config_repository

@@ -1,10 +1,14 @@
+from alembic import command
+from alembic.config import Config
+from app.interface.dependencies import get_agent_service
+import asyncio
 from app.infrastructure.storage.tos import get_tos
 from app.infrastructure.storage.database import get_postgres
 from app.interface.errors.exeception_handlers import register_exception_handlers
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import get_settings
-from app.infrastructure.logging.logging import setup_logging
+from app.infrastructure.logging.logging_setup import setup_logging
 import uvicorn
 import logging
 from contextlib import asynccontextmanager
@@ -21,15 +25,24 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger(__name__)
     logger.info("FastAPI 生命周期启动中...")
 
+    # 配置 Alembic
+    alembic_cfg = Config("alembic.ini")
+    alembic_cfg.attributes["skip_logging"] = True
+
+    command.upgrade(alembic_cfg, "head")
+
     # 初始化redis
+    logger.info("Redis客户端启动中...")
     redis = get_redis()
     await redis.init()
     logger.info("Redis客户端启动成功...")
     # 初始化数据库连接
+    logger.info("Postgres数据库启动中...")
     postgres = get_postgres()
     await postgres.init()
     logger.info("Postgres数据库启动成功...")
     # 初始化数据库连接
+    logger.info("TOS客户端启动中...")
     tos = get_tos()
     tos.init()
     logger.info("TOS客户端启动成功...")
@@ -37,12 +50,20 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        redis.shutdown()
-        logger.info("Redis客户端关闭中...")
-        postgres.shutdown()
-        logger.info("Postgres数据库关闭中...")
+        try:
+            await asyncio.wait_for(get_agent_service().shutdown(), timeout=30)
+            logger.info("AgentService成功关闭")
+        except asyncio.TimeoutError:
+            logger.error("AgentService关闭超时,强制关闭，部分任务将被释放")
+        except Exception as e:
+            logger.error(f"AgentService关闭失败: {e}")
+
+        await redis.shutdown()
+        logger.info("Redis客户端关闭成功")
+        await postgres.shutdown()
+        logger.info("Postgres数据库关闭成功")
         tos.shutdown()
-        logger.info("TOS客户端关闭中...")
+        logger.info("TOS客户端关闭成功")
 
 
 def create_app() -> FastAPI:

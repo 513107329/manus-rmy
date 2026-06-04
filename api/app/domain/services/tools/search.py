@@ -10,6 +10,7 @@ class SearchTool(BaseTool):
     description: str = "全网搜索引擎工具"
 
     def __init__(self, search_engine: SearchEngine) -> None:
+        super().__init__()
         self._search_engine = search_engine
 
     @tool(

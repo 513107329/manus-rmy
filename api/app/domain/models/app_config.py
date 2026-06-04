@@ -6,17 +6,6 @@ from pydantic import Field, ConfigDict, HttpUrl, BaseModel, model_validator
 from typing import Dict, Any
 
 
-class App_Config(BaseModel):
-    llm_config: LLM_Config
-    agent_config: Agent_Config
-    mcp_config: Mcp_Config
-    a2a_config: A2A_Config
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
-
-
 class A2A_ServerConfig(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     base_url: str
@@ -41,6 +30,17 @@ class Agent_Config(BaseModel):
     max_iterations: int = Field(default=100, gt=0, lt=1000)
     max_retries: int = Field(default=3, gt=0, lt=10)
     max_search_results: int = Field(default=10, gt=0, lt=100)
+
+
+class App_Config(BaseModel):
+    llm_config: LLM_Config
+    agent_config: Agent_Config
+    mcp_config: "Mcp_Config"
+    a2a_config: A2A_Config
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
 
 
 class McpTransport(str, Enum):

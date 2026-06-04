@@ -1,3 +1,4 @@
+import asyncio
 from app.infrastructure.storage.database import get_uow
 from app.domain.repositories.uow import IUnitOfWork
 from typing import Callable
@@ -69,7 +70,8 @@ class AgentService:
         sandbox_id = session.sandbox_id
         if sandbox_id:
             sandbox = await self.sandbox_cls.get(sandbox_id)
-        else:
+
+        if not sandbox:
             sandbox = await self.sandbox_cls.create()
             session.sandbox_id = sandbox.id
             async with self.uow:
@@ -81,6 +83,7 @@ class AgentService:
 
         taskRunner = AgentTaskRunner(
             llm=self.llm,
+            agent_config=self.agent_config,
             mcp_config=self.mcp_config,
             a2a_config=self.a2a_config,
             json_parser=self.json_parser,
@@ -91,8 +94,10 @@ class AgentService:
             file_storage=self.file_storage,
             uow_factory=get_uow,
         )
+        logger.info(f"AgentTaskRunner created")
 
         task = self.task_cls.create(taskRunner)
+        logger.info(f"Task created", task.id)
         session.task_id = task.id
         async with self.uow:
             await self.uow.session.save(session)
@@ -114,9 +119,6 @@ class AgentService:
                     raise RuntimeError(f"会话{session_id}不存在")
 
             task = self._get_task(session)
-            if task is None:
-                logger.error(f"会话{session_id}的任务不存在")
-                raise RuntimeError(f"会话{session_id}的任务不存在")
 
             if message:
                 if session.status != SessionStatus.RUNNING or task is None:
@@ -126,7 +128,9 @@ class AgentService:
                         raise RuntimeError(f"会话{session_id}创建任务失败")
                 async with self.uow:
                     await self.uow.session.update_latest_message(
-                        id=session_id, latest_message=message, timestamp=timestamp
+                        id=session_id,
+                        latest_message=message,
+                        timestamp=timestamp or datetime.now(),
                     )
                 message_event = MessageEvent(
                     role="user",
@@ -141,8 +145,9 @@ class AgentService:
                 message_event.id = event_id
                 async with self.uow:
                     await self.uow.session.add_event(session_id, message_event)
-                await task.run()
 
+                logger.info(f"会话{session_id}准备启动")
+                await task.run()
                 logger.info(f"会话{session_id}已启动")
 
                 while task and not task.done:
@@ -155,7 +160,7 @@ class AgentService:
                     event = TypeAdapter(Event).validate_json(event_data)
                     event.id = event_id
                     async with self.uow:
-                        await self.uow.session.update_unread_message_count(
+                        await self.uow.session.update_unread_msg_count(
                             session_id, 0
                         )
                     yield event
@@ -165,11 +170,44 @@ class AgentService:
 
                 logger.info(f"会话{session_id}运行结束")
         except Exception as e:
-            logger.error(f"会话{session_id}聊天失败: {e}")
+            logger.error(f"会话{session_id}聊天失败: {str(e)}")
             event = ErrorEvent(error=str(e))
-            async with self.uow:
-                await self.uow.session.add_event(session_id, event)
+            try:
+                async with self.uow:
+                    await self.uow.session.add_event(session_id, event)
+            except (asyncio.CancelledError, Exception) as add_error:
+                logger.error(
+                    f"会话{session_id}添加事件失败(可能是客户端断开连接): {str(add_error)}"
+                )
             yield event
         finally:
-            async with self.uow:
-                await self.uow.session.update_unread_message_count(session_id, 0)
+            try:
+                asyncio.create_task(self._safe_update_unread_msg_count(session_id))
+            except RuntimeError:
+                logger.error(f"会话{session_id}无法创建后台任务：更新未读消息数")
+
+    async def _safe_update_unread_msg_count(self, session_id: str):
+        try:
+            uow = self.uow_factory()
+            async with uow:
+                await uow.session.update_unread_msg_count(session_id, 0)
+        except Exception as e:
+            logger.error(f"会话{session_id}后台更新未读消息数失败, {str()}")
+
+    async def stop_session(self, session_id: str):
+        async with self.uow:
+            session = await self.uow.session.get_by_id(session_id)
+            if session is None:
+                logger.error(f"会话{session_id}不存在")
+                raise RuntimeError(f"会话{session_id}不存在")
+
+        task = self._get_task(session)
+        if task is None:
+            logger.error(f"会话{session_id}的任务不存在")
+            raise RuntimeError(f"会话{session_id}的任务不存在")
+
+        task.cancel()
+        logger.info(f"会话{session_id}已停止")
+
+    async def shutdown(self) -> None:
+        await self.task_cls.destroy()

@@ -1,4 +1,5 @@
 from typing import Callable
+from app.domain.models.memory import Memory
 from app.domain.repositories.uow import IUnitOfWork
 from app.domain.models.event import MessageEvent
 from app.domain.models.event import ErrorEvent
@@ -15,7 +16,6 @@ from app.domain.models.event import Event
 from typing import AsyncGenerator
 from app.domain.services.tools.base import BaseTool
 from app.domain.external.json_parser import JSONParser
-from app.domain.models.memory import Memory
 from app.domain.external.llm import LLM
 from app.domain.models.app_config import Agent_Config
 from typing import Optional
@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class BaseAgent(ABC):
     """基础智能体类"""
 
-    name: str = ""  # 智能体名称
+    _name: str = ""  # 智能体名称
     _system_prompt: str = ""  # 系统提示词
     _format: Optional[str] = None  # 输出格式
     _retry_interval: float = 1.0  # 重试间隔
@@ -40,7 +40,6 @@ class BaseAgent(ABC):
         uow_factory: Callable[[], IUnitOfWork],
         agent_config: Agent_Config,
         llm: LLM,
-        memory: Memory,
         json_parser: JSONParser,
         tools: List[BaseTool],
     ) -> None:
@@ -49,15 +48,16 @@ class BaseAgent(ABC):
         self.uow: IUnitOfWork = uow_factory()
         self._agent_config = agent_config
         self._llm = llm
-        self._memory: Memory = memory
+        self._memory: Optional[Memory] = None
         self._json_parser = json_parser
         self._tools = tools
 
     async def _add_to_memory(self, messages: List[Dict[str, Any]]) -> None:
         """将对应信息添加到记忆中"""
+        logger.debug("add_to_memory开始")
         await self._ensure_memory()
         if self._memory.is_empty:
-            self._memory.add_messages(
+            self._memory.add_message(
                 {
                     "role": "system",
                     "content": self._system_prompt,
@@ -66,7 +66,7 @@ class BaseAgent(ABC):
         self._memory.add_messages(messages)
         async with self.uow:
             await self.uow.session.save_memory(
-                self._session_id, self.name, self._memory
+                self._session_id, self._name, self._memory
             )
 
     def _get_tool(self, function_name: str) -> Optional[BaseTool]:
@@ -81,7 +81,7 @@ class BaseAgent(ABC):
         if self._memory is None:
             async with self.uow:
                 self._memory = await self.uow.session.get_memory(
-                    self._session_id, self.name
+                    self._session_id, self._name
                 )
 
     def _get_available_tools(self) -> List[Dict[str, Any]]:
@@ -97,7 +97,7 @@ class BaseAgent(ABC):
         self._memory.compact()
         async with self.uow:
             await self.uow.session.save_memory(
-                self._session_id, self.name, self._memory
+                self._session_id, self._name, self._memory
             )
 
     async def _invoke_tool(
@@ -118,7 +118,7 @@ class BaseAgent(ABC):
         self, messages: List[Dict[str, Any]], format: Optional[str] = None
     ) -> AsyncGenerator[Event, None]:
         await self._add_to_memory(messages)
-        response_format = {"type": format} if format else None
+        response_format = {"type": format } if format else None
 
         for _ in range(self._agent_config.max_retries):
             try:
@@ -156,6 +156,8 @@ class BaseAgent(ABC):
                     filter_message = message
 
                 await self._add_to_memory([filter_message])
+
+                return filter_message
             except Exception as e:
                 logger.error(f"调用大模型失败: {str(e)}")
                 await asyncio.sleep(self._retry_interval)
@@ -166,7 +168,9 @@ class BaseAgent(ABC):
     ) -> AsyncGenerator[Event, None]:
         """运行智能体"""
         format = format if format else self._format
+        logger.debug(f"开始调用大模型, {query}")
         message = await self._invoke_llm([{"role": "user", "content": query}], format)
+        logger.debug("大模型调用完成")
 
         for _ in range(self._agent_config.max_iterations):
             if not message.get("tool_calls"):
@@ -176,7 +180,7 @@ class BaseAgent(ABC):
             for tool_call in message.get("tool_calls"):
                 if not tool_call.get("function"):
                     continue
-                tool_id = tool_call.get("id") or str(uuid.uuidv4())
+                tool_id = tool_call.get("id") or str(uuid.uuid4())
                 function_name = tool_call.get("function").get("name")
                 function_args = await self._json_parser.invoke(
                     tool_call.get("function").get("arguments")
@@ -207,6 +211,7 @@ class BaseAgent(ABC):
                         "content": result.model_dump_json(),
                     }
                 )
+            logger.debug("添加工具信息")
             message = await self._invoke_llm(tool_messages, format)
         else:
             yield ErrorEvent(error="达到最大迭代次数")
@@ -242,5 +247,5 @@ class BaseAgent(ABC):
 
         async with self.uow:
             await self.uow.session.save_memory(
-                self._session_id, self.name, self._memory
+                self._session_id, self._name, self._memory
             )

@@ -14,7 +14,7 @@ class OpenAILLM(LLM):
     def __init__(self, llm_config: LLM_Config):
         self._llm_config = llm_config
         self._client = AsyncOpenAI(
-            base_url=llm_config.base_url,
+            base_url=str(llm_config.base_url),
             api_key=llm_config.api_key,
         )
         self._timeout = 3600
@@ -38,6 +38,7 @@ class OpenAILLM(LLM):
         response_format: Dict[str, Any] = None,
         tool_choice: str = None,
     ) -> Dict[str, Any]:
+        logger.debug(f"开始调用LLM, 工具数量: {len(tools)}")
         try:
             if tools:
                 response = await self._client.chat.completions.create(
@@ -55,10 +56,12 @@ class OpenAILLM(LLM):
                 response = await self._client.chat.completions.create(
                     model=self.model_name,
                     messages=messages,
+                    response_format=response_format,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
+                    timeout=self._timeout,
                 )
-            return response.model_dump().choices[0].message
+            return response.choices[0].message.model_dump()
         except Exception as e:
             logger.error(f"调用LLM失败: {str(e)}")
             raise InternalServerErrorException(f"调用LLM失败: {str(e)}")

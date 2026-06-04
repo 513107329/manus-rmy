@@ -1,9 +1,13 @@
+import logging
 from app.infrastructure.repositories.db_file_repository import DBFileRespository
 from app.infrastructure.repositories.db_session_repository import DbSessionRepository
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.domain.repositories.uow import IUnitOfWork
+import asyncio
+
+logger = logging.getLogger(__name__)
 
 
 class DBUnitOfWork(IUnitOfWork):
@@ -33,6 +37,14 @@ class DBUnitOfWork(IUnitOfWork):
                 await self.rollback()
             else:
                 await self.commit()
+        except asyncio.CancelledError:
+            logger.warning("UOW提交/回滚操作被取消（可能是客户端断开连接）")
+        except Exception as e:
+            logger.error(f"UOW提交/回滚操作失败: {str(e)}")
         finally:
-            if self.db_session:
+            try:
                 await self.db_session.close()
+            except asyncio.CancelledError:
+                logger.warning("UOW关闭操作被取消（可能是客户端断开连接）")
+            except Exception as e:
+                logger.error(f"UOW关闭失败: {str(e)}")

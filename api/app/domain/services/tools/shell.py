@@ -5,7 +5,9 @@ from app.domain.services.tools.base import BaseTool, tool
 
 
 class ShellTool(BaseTool):
+    name: str = "shell"
     def __init__(self, sandbox: Sandbox):
+        super().__init__()
         self.sandbox = sandbox
 
     @tool(

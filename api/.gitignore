@@ -9,5 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
+# Application logs
+logs/
+
 # video
 mksz955/

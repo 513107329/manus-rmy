@@ -38,7 +38,6 @@ class ReActAgent(BaseAgent):
         agent_config: Agent_Config,
         uow_factory: Callable[[...], IUnitOfWork],
         llm: LLM,
-        memory: Memory,
         json_parser: JSONParser,
         tools: List[BaseTool],
     ) -> None:
@@ -47,7 +46,6 @@ class ReActAgent(BaseAgent):
             uow_factory,
             agent_config,
             llm,
-            memory,
             json_parser,
             tools,
         )
@@ -81,7 +79,6 @@ class ReActAgent(BaseAgent):
             elif isinstance(event, MessageEvent):
                 step.status = ExecutionStatus.COMPLETED
                 parsed_obj = await self._json_parser.invoke(event.message)
-
                 newStep = Step.model_validate(parsed_obj)
 
                 step.success = newStep.success

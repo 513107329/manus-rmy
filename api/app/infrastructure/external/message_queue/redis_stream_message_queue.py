@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class RedisStreamMessageQueue(MessageQueue):
     def __init__(self, stream_name):
-        self._redis_client = get_redis()
+        self._redis_client = get_redis().client
         self._stream_name = stream_name
         self._lock_expire_seconds = 10
 

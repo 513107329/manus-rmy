@@ -93,7 +93,6 @@ class McpClientManager:
     async def _cache_mcp_server_tools(self, serverName: str, session: ClientSession):
         try:
             toolsResponse = await session.list_tools()
-            print(serverName, toolsResponse.tools, "toolsResponse")
             self._tools[serverName] = toolsResponse.tools
         except Exception as e:
             logger.error(f"Failed to cache MCP server tools: {serverName}, error: {e}")
@@ -200,11 +199,17 @@ class McpClientManager:
     async def cleanup(self):
         try:
             await self._async_exist_stack.aclose()
+        except RuntimeError as e:
+            if "Attempted to exit cancel scope in a different task" in str(e):
+                logger.warning("清理MCP客户端管理器时遇到任务上下文切换警告")
+            else:
+                logger.error(f"清理MCP客户端管理器失败: {e}")
+        except Exception as e:
+            logger.error(f"清理MCP客户端管理器失败: {e}")
+        finally:
             self._clients.clear()
             self._tools.clear()
             self._initialized = False
-        except Exception as e:
-            logger.error(f"Failed to cleanup MCP client: {e}")
 
     @property
     def tools(self):
@@ -215,7 +220,7 @@ class McpTool(BaseTool):
     name: str = "mcp"
 
     def __init__(self) -> None:
-        super.__init__()
+        super().__init__()
         self._initailized = False
         self._tools = []
         self._manager: McpClientManager = None

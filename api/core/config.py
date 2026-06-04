@@ -10,6 +10,7 @@ _ENV_FILE = Path(__file__).parent.parent / ".env"
 class Settings(BaseSettings):
     env: str = "develop"
     log_level: str = "INFO"
+    log_file: str = "logs/app.log"
     app_config_filepath: str = "config.yaml"
 
     # 数据库相关配置

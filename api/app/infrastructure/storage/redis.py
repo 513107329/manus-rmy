@@ -24,15 +24,15 @@ class RedisClient:
                 password=self._setting.redis_password,
                 decode_responses=True,
             )
-            self._client.ping()
+            await self._client.ping()
             logger.info("Redis客户端初始化成功")
         except Exception as e:
             logger.error(f"初始化redis客户端失败：{str(e)}")
             raise
 
-    def shutdown(self) -> None:
+    async def shutdown(self) -> None:
         if self._client is not None:
-            self._client.close()
+            await self._client.aclose()
             self._client = None
             logger.info("Redis客户端关闭成功")
             get_redis.cache_clear()

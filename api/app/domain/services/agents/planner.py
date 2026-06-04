@@ -46,7 +46,6 @@ class PlannerAgent(BaseAgent):
         agent_config: Agent_Config,
         llm: LLM,
         uow_factory: Callable[[...], IUnitOfWork],
-        memory: Memory,
         json_parser: JSONParser,
         tools: List[BaseTool],
     ) -> None:
@@ -55,7 +54,6 @@ class PlannerAgent(BaseAgent):
             uow_factory,
             agent_config,
             llm,
-            memory,
             json_parser,
             tools,
         )
@@ -68,7 +66,6 @@ class PlannerAgent(BaseAgent):
         async for event in self.invoke(query):
             if isinstance(event, MessageEvent):
                 parsed_obj = await self._json_parser.invoke(event.message)
-
                 plan = Plan.model_validate(parsed_obj)
 
                 yield PlanEvent(plan=plan, status=PlanEventStatus.CREATED)
@@ -91,7 +88,7 @@ class PlannerAgent(BaseAgent):
 
                 first_pending_index = None
                 for i, step in enumerate(plan.steps):
-                    if not step.done():
+                    if not step.done:
                         first_pending_index = i
                         break
 

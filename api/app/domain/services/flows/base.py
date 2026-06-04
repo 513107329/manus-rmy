@@ -19,7 +19,7 @@ class BaseFlow(ABC):
     """基础流抽象类"""
 
     @abstractmethod
-    def invoke(self, message: Message) -> AsyncGenerator[BaseEvent, None]:
+    async def invoke(self, message: Message) -> AsyncGenerator[BaseEvent, None]:
         """流调用函数"""
         pass
 

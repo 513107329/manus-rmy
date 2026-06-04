@@ -16,12 +16,14 @@ def tool(
         """装饰器函数"""
         tool_schema = {
             "type": "function",
-            "name": name,
-            "description": description,
-            "parameters": {
-                "type": "object",
-                "properties": params,
-                "required": required,
+            "function": {
+                "name": name,
+                "description": description,
+                "parameters": {
+                    "type": "object",
+                    "properties": params,
+                    "required": required,
+                },
             },
         }
 
@@ -60,6 +62,7 @@ class BaseTool:
         if self._tools_cache is None:
             self._tools_cache = []
             for _, method in inspect.getmembers(self, inspect.ismethod):
+                print("method", method)
                 if hasattr(method, "_tool_schema"):
                     self._tools_cache.append(getattr(method, "_tool_schema"))
         return self._tools_cache

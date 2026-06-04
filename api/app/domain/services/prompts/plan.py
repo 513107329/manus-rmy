@@ -6,10 +6,9 @@ You are a task planning agent, and you need to create or update plans for tasks:
 4. Generate plan objectives and steps
 """
 
-# 创建Plan规划提示词模板
 CREATE_PLAN_PROMPT = """
 You are now creating a plan based on the user's message:
-${message}
+{message}
 
 Notes:
 - **You must use the language used in the user's message to execute the task**
@@ -23,39 +22,39 @@ Output format requirements:
 - If the task is determined to be infeasible, return an empty array for "steps" and an empty string for "goal"
 
 TypeScript interface definition:
-\`\`\`typescript
-interface CreatePlanResponse {
+```typescript
+interface CreatePlanResponse {{
   /** Response to the user's message and thoughts about the task, as detailed as possible, using the user's language **/
   message: string;
   /** Working language determined based on the user's message **/
   language: string;
   /** Array of steps, each step contains a description **/
-  steps: Array<{
+  steps: Array<{{
     /** Step identifier **/
     id: string;
     /** Step description **/
     description: string;
-  }>
+  }}>
   /** Plan goal generated based on context **/
   goal: string;
   /** Plan title generated based on context **/
   title: string;
-}
-\`\`\`
+}}
+```
 
 JSON output example:
-{
+{{
   "message": "User reply message",
   "goal": "Goal description",
   "title": "Task title",
   "language": "en",
   "steps": [
-    {
+    {{
       "id": "step-1",
       "description": "Step 1 description"
-    }
+    }}
   ]
-}
+}}
 
 Input:
 - message: User's message
@@ -65,17 +64,15 @@ Output:
 - Plan in JSON format
 
 User message:
-${message}
+{message}
 
 User attachments:
-${attachments}
-
+{attachments}
 """
 
-# 更新Plan规划提示词模板
 UPDATE_PLAN_PROMPT = """
 You are updating the plan, and you need to update the plan based on the execution results of the step:
-${step}
+{step}
 
 Notes:
 - You can delete, add, or modify plan steps, but do not change the plan goal (goal)
@@ -91,27 +88,27 @@ Output format requirements:
 - Must include all specified required fields
 
 TypeScript interface definition:
-\`\`\`typescript
-interface UpdatePlanResponse {
+```typescript
+interface UpdatePlanResponse {{
   /** Array of updated unfinished steps **/
-  steps: Array<{
+  steps: Array<{{
     /** Step identifier **/
     id: string;
     /** Step description **/
     description: string;
-  }>
-}
-\`\`\`
+  }}>
+}}
+```
 
 JSON output example:
-{
+{{
   "steps": [
-    {
+    {{
       "id": "step-1",
       "description": "Step 1 description"
-    }
+    }}
   ]
-}
+}}
 
 Input:
 - step: Current step
@@ -121,8 +118,8 @@ Output:
 - Updated unfinished steps in JSON format
 
 Step:
-${step}
+{step}
 
 Plan:
-${plan}
+{plan}
 """

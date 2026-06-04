@@ -1,17 +1,19 @@
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.sql import func
-from app.domain.models.memory import Memory
-from app.domain.models.file import File
-from app.domain.models.event import BaseEvent
-from app.domain.models.session import SessionStatus
+from typing import Optional, List
 from datetime import datetime
-from typing import Optional
-from typing import List
-from app.infrastructure.models import SessionModel
+import logging
 from sqlalchemy.sql import select, delete, update, cast
 from sqlalchemy.ext.asyncio.session import AsyncSession
+from app.domain.models.memory import Memory
+from app.domain.models.event import BaseEvent
+from app.domain.models.session import SessionStatus
 from app.domain.repositories.session_repository import SessionRepository
+from app.domain.models.file import File
+from app.infrastructure.models import SessionModel
 from app.domain.models.session import Session
+
+logger = logging.getLogger(__name__)
 
 
 class DbSessionRepository(SessionRepository):
@@ -65,13 +67,13 @@ class DbSessionRepository(SessionRepository):
         stmt = (
             update(SessionModel)
             .where(SessionModel.id == id)
-            .values(latest_message=latest_message, latest_message_at=timestamp)
+            .values(latest_msg=latest_message, latest_message_at=timestamp)
         )
         result = await self.db_session.execute(stmt)
         if result.rowcount == 0:
             raise ValueError(f"会话 {id} 不存在")
 
-    async def update_unread_message_count(self, id: str, unread_msg_count: int) -> None:
+    async def update_unread_msg_count(self, id: str, unread_msg_count: int) -> None:
         """更新会话未读消息数"""
         stmt = (
             update(SessionModel)
@@ -89,13 +91,13 @@ class DbSessionRepository(SessionRepository):
         if result.rowcount == 0:
             raise ValueError(f"会话 {id} 不存在")
 
-    async def increment_unread_message_count(self, id: str) -> None:
+    async def increment_unread_msg_count(self, id: str) -> None:
         """增加会话未读消息数"""
         stmt = (
             update(SessionModel)
             .where(SessionModel.id == id)
             .values(
-                unread_message_count=func.coalesce(SessionModel.unread_message_count, 0)
+                unread_msg_count=func.coalesce(SessionModel.unread_msg_count, 0)
                 + 1
             )
         )
@@ -103,14 +105,14 @@ class DbSessionRepository(SessionRepository):
         if result.rowcount == 0:
             raise ValueError(f"会话 {id} 不存在")
 
-    async def decrement_unread_message_count(self, id: str) -> None:
+    async def decrement_unread_msg_count(self, id: str) -> None:
         """减少会话未读消息数"""
         stmt = (
             update(SessionModel)
             .where(SessionModel.id == id)
             .values(
-                unread_message_count=func.greatest(
-                    func.coalesce(SessionModel.unread_message_count, 0) - 1, 0
+                unread_msg_count=func.greatest(
+                    func.coalesce(SessionModel.unread_msg_count, 0) - 1, 0
                 )
             )
         )
@@ -174,6 +176,7 @@ class DbSessionRepository(SessionRepository):
 
     async def save_memory(self, id: str, agent_name: str, memory: Memory) -> None:
         """保存记忆"""
+        logger.debug("保存记忆中...")
         memory_data = memory.model_dump(mode="json")
         stmt = (
             update(SessionModel)
@@ -208,6 +211,7 @@ class DbSessionRepository(SessionRepository):
 
     async def remove_memory(self, id: str, agent_name: str) -> None:
         """删除记忆"""
+        logger.debug("删除记忆中...")
         stmt = select(SessionModel).where(SessionModel.id == id).with_for_update()
         result = await self.db_session.execute(stmt)
         record = result.scalar_one_or_none()
@@ -217,6 +221,7 @@ class DbSessionRepository(SessionRepository):
 
     async def get_memory(self, id: str, agent_name: str) -> Optional[Memory]:
         """获取记忆"""
+        logger.debug("获取记忆中...")
         stmt = select(SessionModel.memories[agent_name]).where(SessionModel.id == id)
         result = await self.db_session.execute(stmt)
         memory = result.scalar_one_or_none()

@@ -3,16 +3,15 @@ from typing import Optional
 from typing import Any
 from typing import Dict
 from typing import List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 
 class Memory(BaseModel):
-    """记忆类，定义Agent的记忆基础消息 class Memory"""
+    """记忆类，定义 Agent 的记忆基础消息"""
 
-    def __init__(self, messages: List[Dict[str, Any]]):
-        self.messages = messages
+    messages: List[Dict[str, Any]] = Field(default_factory=list)
 
     @classmethod
     def get_role_info(cls, message: Dict[str, Any]) -> str:
@@ -48,6 +47,11 @@ class Memory(BaseModel):
                     logger.debug(
                         f"从记忆中移除对应工具的结果: {message.get('tool_name')}"
                     )
+            if "reasoning_content" in message:
+                logger.debug(
+                    f"从记忆中移除工具思考的结果: {message.get('reasoning_content')}"
+                )
+                del message["reasoning_content"]
 
     @property
     def is_empty(self) -> bool:

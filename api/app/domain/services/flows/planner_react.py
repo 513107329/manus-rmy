@@ -1,13 +1,12 @@
+from typing import Optional, AsyncGenerator, Callable
+import logging
 from app.domain.repositories.uow import IUnitOfWork
-from typing import Callable
 from app.domain.models.plan import ExecutionStatus
 from app.domain.models.event import MessageEvent
 from app.domain.models.event import TitleEvent
 from app.domain.models.event import PlanEventStatus
 from app.domain.models.event import PlanEvent
 from app.domain.models.event import DoneEvent
-from httpcore import __name
-import logging
 from app.domain.models.session import SessionStatus
 from app.domain.services.agents.react import ReActAgent
 from app.domain.external.json_parser import JSONParser
@@ -24,11 +23,9 @@ from app.domain.services.tools.shell import ShellTool
 from app.domain.external.sandbox import Sandbox
 from app.domain.services.tools.file import FileTool
 from app.domain.models.plan import Plan
-from typing import Optional
 from app.domain.services.flows.base import FlowStatus
 from app.domain.services.flows.base import BaseFlow
 from app.domain.models.event import BaseEvent
-from typing import AsyncGenerator
 from app.domain.models.message import Message
 from app.domain.services.tools.message import MessageTool
 
@@ -36,6 +33,8 @@ logger = logging.getLogger(__name__)
 
 
 class PlannerReactFlow(BaseFlow):
+    """多Agent系统/flow = PlannerAgent + ReActAgent"""
+
     def __init__(
         self,
         llm: LLM,
@@ -45,8 +44,8 @@ class PlannerReactFlow(BaseFlow):
         sandbox: Sandbox,
         browser: Browser,
         search_engine: SearchEngine,
-        mcpTool: McpTool,
-        a2sTool: A2ATool,
+        mcp_tool: McpTool,
+        a2a_tool: A2ATool,
         uow_factory: Callable[[...], IUnitOfWork],
     ):
         self.session_id = session_id
@@ -61,16 +60,16 @@ class PlannerReactFlow(BaseFlow):
             BrowserTool(browser=browser),
             SearchTool(search_engine=search_engine),
             MessageTool(),
-            mcpTool,
-            a2sTool,
+            mcp_tool,
+            a2a_tool,
         ]
 
         self.planner = PlannerAgent(
             session_id=session_id,
+            agent_config=agent_config,
             uow_factory=uow_factory,
             tools=tools,
             llm=llm,
-            agent_config=agent_config,
             json_parser=json_parser,
         )
 
@@ -136,20 +135,29 @@ class PlannerReactFlow(BaseFlow):
             elif self.status == FlowStatus.EXECUTING:
                 self.plan.status = ExecutionStatus.RUNNING
                 step = self.plan.get_next_step()
-                if step:
-                    async for event in self.react.exucuteStep(self.plan, step, message):
-                        yield event
-                else:
+                if not step:
+                    logger.info(
+                        f"Planner&ReAct流状态从{FlowStatus.EXECUTING}变成{FlowStatus.SUMMARIZING}"
+                    )
                     self.status = FlowStatus.SUMMARIZING
+                    continue
 
-                # 压缩执行Agent记忆
+                logger.info(
+                    f"Planner&ReAct流开始执行步骤 {step.id}: {step.description[:50]}..."
+                )
+                async for event in self.react.exucuteStep(self.plan, step, message):
+                    yield event
+
+                # 21.压缩执行Agent记忆，避免上下文腐化+消耗大量token
+                logger.info(f"压缩{self.react._name} Agent记忆/上下文")
                 await self.react.compact_memory()
 
+                # 22.将状态更新为updating
                 self.status = FlowStatus.UPDATING
             elif self.status == FlowStatus.UPDATING:
                 async for event in self.planner.updatePlan(self.plan, step):
                     yield event
-                self.status = FlowStatus.SUMMARIZING
+                self.status = FlowStatus.EXECUTING
             elif self.status == FlowStatus.SUMMARIZING:
                 async for event in self.react.summarize():
                     yield event
@@ -157,7 +165,7 @@ class PlannerReactFlow(BaseFlow):
             elif self.status == FlowStatus.COMPLETED:
                 self.plan.status = ExecutionStatus.COMPLETED
                 self.status = FlowStatus.IDLE
-                yield PlanEvent(status=PlanEventStatus.COMPLETED, plan=self.plan)
+                yield PlanEvent(status=PlanEventStatus.UPDATED, plan=self.plan)
                 break
 
         yield DoneEvent(status=FlowStatus.IDLE)

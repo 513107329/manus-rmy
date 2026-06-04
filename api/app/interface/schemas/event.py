@@ -28,13 +28,13 @@ class BaseEventData(BaseModel):
 
     @classmethod
     def base_event_data(cls, event: Event) -> Dict:
-        return cls(
-            event_id=event.id,
-            created_at=int(event.created_at.timestamp()),
-        )
+        return {
+            "event_id": event.id,
+            "created_at": int(event.created_at.timestamp()),
+        }
 
     @classmethod
-    def from_event(cls, event: Event) -> Dict:
+    def from_event(cls, event: Event) -> Self:
         return cls(
             **cls.base_event_data(event),
             **event.model_dump(mode="json", exclude={"id", "created_at"}),
@@ -47,7 +47,7 @@ class BaseSSEEvent(BaseModel):
 
     @classmethod
     def from_event(cls, event: Event) -> Dict:  # 将事件Domain模型转换为基础流式事件
-        data_cls: Type[BaseEventData] = cls.__annotations.get("data", BaseEventData)
+        data_cls: Type[BaseEventData] = cls.__annotations__.get("data", BaseEventData)
         return cls(
             event=event.type,
             data=data_cls.from_event(event),
@@ -248,11 +248,11 @@ class EventMapper:
                         and "data" in sse_event_class.__annotations__
                     ):
                         data_class = sse_event_class.__annotations__["data"]
-                    mapping[event_type] = EventMapping(
-                        sse_event_class=sse_event_class,
-                        data_class=data_class,
-                        event_type=event_type,
-                    )
+                        mapping[event_type] = EventMapping(
+                            sse_event_class=sse_event_class,
+                            data_class=data_class,
+                            event_type=event_type,
+                        )
 
         EventMapper._cache_mapping = mapping
         return mapping

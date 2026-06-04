@@ -29,6 +29,7 @@ class Postgres:
             self._engine = create_async_engine(
                 self._settings.sql_alchemy_database_url,
                 echo=True if self._settings.env == "development" else False,
+                pool_pre_ping=True,
             )
             self._session_factory = async_sessionmaker(
                 autocommit=False, autoflush=False, bind=self._engine
@@ -45,12 +46,13 @@ class Postgres:
             logger.error(f"数据库连接失败, {str(e)}")
             raise
 
-    def shutdown(self):
-        self._session_factory = None
-        self._engine.dispose()
-        self._engine = None
-        get_postgres.cache_clear()
-        logger.info("数据库连接已关闭")
+    async def shutdown(self):
+        if self._engine is not None:
+            self._session_factory = None
+            await self._engine.dispose()
+            self._engine = None
+            get_postgres.cache_clear()
+            logger.info("数据库连接已关闭")
 
     @property
     def session_factory(self) -> async_sessionmaker[AsyncSession]:

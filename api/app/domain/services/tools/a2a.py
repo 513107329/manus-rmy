@@ -117,7 +117,7 @@ class A2ATool(BaseTool):
     name: str = "a2a"
 
     def __init__(self):
-        super().init()
+        super().__init__()
         self.manager: Optional[A2AClientManager] = None
         self.initialized: bool = False
 

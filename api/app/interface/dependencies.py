@@ -1,7 +1,6 @@
+from app.infrastructure.external.search.bing_search import BingSearchEngine
+from app.infrastructure.external.json_parser.repair_json_parser import RepairJsonParser
 from app.infrastructure.external.llm.openai_llm import OpenAILLM
-from app.domain.external.search import SearchEngine
-from app.domain.external.json_parser import JSONParser
-from app.domain.external.llm import LLM
 from app.infrastructure.external.sandbox.docker_sandbox import DockerSandbox
 from app.infrastructure.external.task.redis_stream_task import RedisStreamTask
 from app.infrastructure.storage.database import get_uow
@@ -15,6 +14,7 @@ from app.infrastructure.external.file_storage.tos_file_storage import TosFileSto
 from app.infrastructure.external.health_checker.postgres_checker import (
     PostgresHealthChecker,
 )
+import logging
 from app.infrastructure.storage.redis import RedisClient
 from app.infrastructure.storage.redis import get_redis
 from app.infrastructure.external.health_checker.redis_checker import RedisHealthChecker
@@ -27,6 +27,8 @@ from app.infrastructure.repositories.file_app_config_repository import (
 )
 from app.application.services.app_config_service import AppConfigService
 
+
+logger = logging.getLogger(__name__)
 
 def get_app_config_service() -> AppConfigService:
     file_app_config_repository = FileAppConfigRepository("app_config.yaml")
@@ -42,22 +44,27 @@ def get_file_service(tos: Tos = Depends(get_tos)) -> FileService:
 
 
 def get_session_service() -> SessionService:
-    return SessionService(uow_factory=get_uow)
+    return SessionService(uow_factory=get_uow, sandbox_cls=DockerSandbox)
 
 
-def get_agent_service() -> AgentService:
+def get_agent_service(
+    app_config_service: AppConfigService = Depends(get_app_config_service),
+) -> AgentService:
     settings = get_settings()
+    configs = app_config_service.get_app_config()
     return AgentService(
         uow_factory=get_uow,
         task_cls=RedisStreamTask,
         sandbox_cls=DockerSandbox,
-        llm=OpenAILLM(llm_config=settings.llm_config),
-        agent_config=settings.agent_config,
-        mcp_config=settings.mcp_config,
-        a2a_config=settings.a2a_config,
-        json_parser=JSONParser(),
-        search_engine=SearchEngine(),
-        file_storage=TosFileStorage(bucket=settings.tos_bucket, tos=get_tos()),
+        llm=OpenAILLM(llm_config=configs.llm_config),
+        agent_config=configs.agent_config,
+        mcp_config=configs.mcp_config,
+        a2a_config=configs.a2a_config,
+        json_parser=RepairJsonParser(),
+        search_engine=BingSearchEngine(),
+        file_storage=TosFileStorage(
+            uow_factory=get_uow, bucket=settings.tos_bucket, tos=get_tos()
+        ),
     )
 
 

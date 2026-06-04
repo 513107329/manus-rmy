@@ -1,26 +1,24 @@
-from sqlalchemy import false
 import asyncio
 import logging
-from typing import Dict
+import uuid
+from typing import Dict, Optional
 from app.infrastructure.external.message_queue.redis_stream_message_queue import (
     RedisStreamMessageQueue,
 )
 from app.domain.external.message_queue import MessageQueue
-from typing import Optional
-import asyncio
 from app.domain.external.task import Task, TaskRunner
-import uuid
 
 logger = logging.getLogger(__name__)
 
 
 class RedisStreamTask(Task):
+    """Redis流式任务"""
 
-    _task_registry: Dict[str, RedisStreamTask] = None
+    _task_registry: Dict[str, "RedisStreamTask"] = {}
 
     def __init__(self, task_runner: TaskRunner):
         self._task_runner = task_runner
-        self._id = str(uuid.uuidv4())
+        self._id = str(uuid.uuid4())
         self._execution_task: Optional[asyncio.Task] = None
 
         # 输入输出流名称
@@ -52,17 +50,20 @@ class RedisStreamTask(Task):
         if self._task_runner:
             asyncio.create_task(self._task_runner.on_done(self))
 
-        self._cleanup_registry(self)
+        self._cleanup_registry()
 
     async def _execute_task(self) -> None:
         try:
             await self._task_runner.invoke(self)
+        except asyncio.CancelledError:
+            logger.info(f"任务{self._id}被取消")
+            raise
         except Exception as e:
             logger.error(f"Error executing task: {e}")
         finally:
             await self._on_task_done()
 
-    async def invoke(self) -> None:
+    async def run(self) -> None:
         if self.done:
             self._execution_task = asyncio.create_task(self._execute_task())
             logger.info(f"任务{self._id}开始执行")
@@ -72,7 +73,7 @@ class RedisStreamTask(Task):
             self._execution_task.cancel()
             logger.info(f"任务{self._id}取消执行")
 
-        self._cleanup_registry(self)
+        self._cleanup_registry()
         return True
 
     @property

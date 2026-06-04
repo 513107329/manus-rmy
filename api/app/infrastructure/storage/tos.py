@@ -17,7 +17,7 @@ class Tos:
             return
 
         try:
-            print(self._setting)
+            print(self._setting, "settings")
             ak = self._setting.tos_access_key
             sk = self._setting.tos_secret_key
             endpoint = self._setting.tos_endpoint

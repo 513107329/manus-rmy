@@ -1,3 +1,4 @@
+from core.config import get_settings
 from typing import BinaryIO
 from app.domain.repositories.uow import IUnitOfWork
 from typing import Callable
@@ -82,14 +83,15 @@ class AgentTaskRunner(TaskRunner):
             sandbox=sandbox,
             browser=browser,
             search_engine=search_engine,
-            mcpTool=self.mcp_tool,
-            a2sTool=self.a2a_tool,
+            mcp_tool=self.mcp_tool,
+            a2a_tool=self.a2a_tool,
         )
 
     async def _put_and_add_event(self, task: Task, event: Event):
         event_id = await task.output_stream.put(event.model_dump_json())
         event.id = event_id
-        await self.uow.session.add_event(self.session_id, event)
+        async with self.uow:
+            await self.uow.session.add_event(self.session_id, event)
 
     async def _pop_event(self, task: Task):
         event_id, event_str = await task.input_stream.pop()
@@ -110,7 +112,8 @@ class AgentTaskRunner(TaskRunner):
 
             if tool_result.success:
                 file.filepath = filepath
-                await self.file_repository.save(file)
+                async with self.uow:
+                    await self.uow.file.save(file)
                 return file
             else:
                 logger.error(f"同步沙箱附件失败: {tool_result.error}")
@@ -182,10 +185,14 @@ class AgentTaskRunner(TaskRunner):
             screenshot = await self.browser.screenshot()
             result = await self.file_storage.upload_file(
                 UploadFile(
-                    file=io.BytesIO(screenshot.data), filename=f"{uuid.uuid4()}.png"
+                    file=io.BytesIO(screenshot),
+                    filename=f"{uuid.uuid4()}.png",
+                    size=self.get_file_size(io.BytesIO(screenshot)),
                 )
             )
-            return result.id
+            settings = get_settings()
+            # https://soon-web.tos-cn-shanghai.volces.com/2026/05/21/71007773-7a85-4a3b-a32a-da91be69026b..png
+            return f"https://{settings.tos_bucket}.{settings.tos_endpoint}/{result.id}"
         except Exception as e:
             logger.error(f"获取浏览器截图失败: {str(e)}")
             return ""
@@ -207,7 +214,7 @@ class AgentTaskRunner(TaskRunner):
                             event.function_args["session_id"], console=True
                         )
                         event.tool_content = ShellToolContent(
-                            console=shell_result.data.get("console_records", [])
+                            console=(shell_result.data or {}).get("console_records", [])
                         )
                     else:
                         event.tool_content = ShellToolContent(content="(No Console)")
@@ -219,7 +226,7 @@ class AgentTaskRunner(TaskRunner):
                         event.tool_content = FileToolContent(
                             content=file_result.data.get("content", "")
                         )
-                        await self._sync_file_to_sandbox(
+                        await self._sync_attachment_to_sandbox(
                             event.function_args["filepath"]
                         )
                     else:
@@ -282,11 +289,13 @@ class AgentTaskRunner(TaskRunner):
 
     async def invoke(self, task: Task):
         try:
+            logger.debug("开始调用agent任务执行器")
             await self.sandbox._ensure_sandbox_exists()
             await self.mcp_tool.initialize(self.mcp_config)
             await self.a2a_tool.initialize(self.a2a_config)
 
             while not await task.input_stream.is_empty():
+                print("task.input_stream.is_empty()", await task.input_stream.is_empty())
                 event = await self._pop_event(task)
                 message = ""
 
@@ -301,6 +310,7 @@ class AgentTaskRunner(TaskRunner):
                         ],
                     )
 
+                    logger.info(f"开始跑流程，message_obj: {message_obj}")
                     async for event in self._run_flow(message_obj):
                         await self._put_and_add_event(task, event)
 
@@ -314,7 +324,7 @@ class AgentTaskRunner(TaskRunner):
                                 await self.uow.session.update_latest_message(
                                     self.session_id, event.message, event.created_at
                                 )
-                                await self.uow.session.increment_unread_message_count(
+                                await self.uow.session.increment_unread_msg_count(
                                     self.session_id
                                 )
                         elif isinstance(event, WaitEvent):
@@ -324,21 +334,22 @@ class AgentTaskRunner(TaskRunner):
                                 )
                             return
 
-                        if await task.input_stream.is_empty():
-                            break
-                async with self.uow:
-                    await self.uow.session.update_status(
-                        self.session_id, SessionStatus.COMPLETED
-                    )
+                    if await task.input_stream.is_empty():
+                        break
+            async with self.uow:
+                await self.uow.session.update_status(
+                    self.session_id, SessionStatus.COMPLETED
+                )
         except asyncio.CancelledError:
-            logger.info(f"任务被取消: {task.task_id}")
+            logger.info(f"任务被取消: {task.id}")
             await self._put_and_add_event(task, DoneEvent())
             async with self.uow:
                 await self.uow.session.update_status(
                     self.session_id, SessionStatus.COMPLETED
                 )
+            raise
         except Exception as e:
-            logger.error(f"任务执行失败: {task.task_id}", exc_info=True)
+            logger.error(f"任务执行失败: {task.id}", exc_info=True)
             await self._put_and_add_event(
                 task, ErrorEvent(error=f"AgentTaskRunner.invoke error: {str(e)}")
             )
@@ -346,15 +357,20 @@ class AgentTaskRunner(TaskRunner):
                 await self.uow.session.update_status(
                     self.session_id, SessionStatus.COMPLETED
                 )
+        finally:
+            await self._cleanup_tools()
 
     async def destroy(self):
         logger.info(f"销毁任务执行器: {self.session_id}")
+        if self.sandbox:
+            await self.sandbox.destroy()
+        await self._cleanup_tools()
+
+    async def _cleanup_tools(self):
         if self.mcp_tool:
             await self.mcp_tool.cleanup()
         if self.a2a_tool:
             await self.a2a_tool.cleanup()
-        if self.sandbox:
-            await self.sandbox.destroy()
 
     async def on_done(self, task: Task):
-        logger.info(f"任务执行完成: {task.task_id}")
+        logger.info(f"任务执行完成: {task.id}")
