@@ -12,6 +12,7 @@ class ToolResult(BaseModel, Generic[T]):
     data: Optional[T] = None  # 工具执行结果/数据
     message: Optional[str] = None  # 额外信息提示
 
+    @classmethod
     def from_sandbox(
         cls, code: int, message: str, data: Optional[T], **kwargs
     ) -> "ToolResult":
