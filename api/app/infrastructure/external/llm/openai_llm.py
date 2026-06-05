@@ -38,7 +38,7 @@ class OpenAILLM(LLM):
         response_format: Dict[str, Any] = None,
         tool_choice: str = None,
     ) -> Dict[str, Any]:
-        logger.debug(f"开始调用LLM, 工具数量: {len(tools)}")
+        logger.info(f"开始调用LLM")
         try:
             if tools:
                 response = await self._client.chat.completions.create(

@@ -1,4 +1,4 @@
-from typing import Self
+from typing import BinaryIO, Self
 from fastapi import UploadFile
 import logging
 from app.domain.models.tool_result import ToolResult
@@ -87,6 +87,12 @@ class DockerSandbox(Sandbox):
                 "name": container_name,
                 "detach": True,
                 "remove": True,
+                "ports": {
+                    "8000/tcp": 8000,
+                    "9222/tcp": 9222,
+                    "5900/tcp": 5900,
+                    "5901/tcp": 5901,
+                },
                 "environment": {
                     "SERVICE_TIMEOUT_MINUTES": settings.sandbox_ttl_minutes,
                     "CHROME_ARGS": settings.sandbox_chrome_args,
@@ -110,7 +116,7 @@ class DockerSandbox(Sandbox):
             logger.info(f"Sandbox container {container_name} created")
             ip = cls._get_container_ip(container)
             logger.info(f"Sandbox container {container_name} IP: {ip}")
-            return cls(ip=ip, container_name=container_name)
+            return cls(ip="127.0.0.1", container_name=container_name)
         except Exception as e:
             logger.error(f"Failed to create sandbox: {e}")
             raise Exception(f"Failed to create sandbox: {e}")
@@ -121,7 +127,7 @@ class DockerSandbox(Sandbox):
 
         if settings.sandbox_address:
             ip = await cls._resolve_hostname_to_ip(settings.sandbox_address)
-            return cls(ip=ip, container_name=settings.sandbox_name_prefix)
+            return cls(ip="127.0.0.1", container_name=settings.sandbox_name_prefix)
 
         return await asyncio.to_thread(cls._create_task)
 
@@ -165,7 +171,7 @@ class DockerSandbox(Sandbox):
                     logger.error(f"Sandbox container {id} has no IP address")
                     return None
 
-                return cls(ip=ip, container_name=id)
+                return cls(ip='127.0.0.1', container_name=id)
             except docker.errors.NotFound:
                 logger.error(f"Sandbox container {id} not found")
                 return None
@@ -181,7 +187,7 @@ class DockerSandbox(Sandbox):
     async def get_browser(self) -> Browser:
         return PlayWrightBrowser(self.cdp_url)
 
-    async def ensure_sandbox(self) -> None:
+    async def _ensure_sandbox_exists(self) -> None:
         max_retries = 30
         retry_interval = 2
         for attempt in range(max_retries):
@@ -228,7 +234,7 @@ class DockerSandbox(Sandbox):
                 await asyncio.sleep(retry_interval)
 
     # file模块方法
-    async def read_file(
+    async def file_read(
         self,
         filepath: str,
         start_line: Optional[int] = None,
@@ -248,7 +254,7 @@ class DockerSandbox(Sandbox):
         tool_result = ToolResult.from_sandbox(**response.json())
         return tool_result
 
-    async def write_file(
+    async def file_write(
         self,
         filepath: str,
         content: str,
@@ -272,19 +278,19 @@ class DockerSandbox(Sandbox):
         tool_result = ToolResult.from_sandbox(**response.json())
         return tool_result
 
-    async def replace_in_file(
+    async def file_replace(
         self,
         filepath: str,
-        old_content: str,
-        new_content: str,
+        old_str: str,
+        new_str: str,
         sudo: bool = False,
     ) -> ToolResult:
         response = await self.client.post(
             f"{self._base_url}/api/file/replace-in-file",
             json={
                 "filepath": filepath,
-                "old_content": old_content,
-                "new_content": new_content,
+                "old_content": old_str,
+                "new_content": new_str,
                 "sudo": sudo,
             },
         )
@@ -292,7 +298,7 @@ class DockerSandbox(Sandbox):
         tool_result = ToolResult.from_sandbox(**response.json())
         return tool_result
 
-    async def search_in_file(
+    async def file_search(
         self,
         filepath: str,
         regex: str,
@@ -310,11 +316,11 @@ class DockerSandbox(Sandbox):
         tool_result = ToolResult.from_sandbox(**response.json())
         return tool_result
 
-    async def find_files(self, dir_path: str, glob_pattern: str) -> ToolResult:
+    async def file_find(self, dirpath: str, glob_pattern: str) -> ToolResult:
         response = await self.client.post(
             f"{self._base_url}/api/file/find-files",
             json={
-                "dir_path": dir_path,
+                "dir_path": dirpath,
                 "glob_pattern": glob_pattern,
             },
         )
@@ -322,15 +328,18 @@ class DockerSandbox(Sandbox):
         tool_result = ToolResult.from_sandbox(**response.json())
         return tool_result
 
-    async def list_files(self, dir_path: str) -> ToolResult:
-        return await self.find_files(dir_path, "*")
+    async def file_list(self, dirpath: str) -> ToolResult:
+        return await self.file_find(dirpath, "*")
 
-    async def upload_file(self, file: UploadFile, filepath: str) -> ToolResult:
+    async def file_upload(
+        self, file_data: BinaryIO, filepath: str, filename: str
+    ) -> ToolResult:
         response = await self.client.post(
             f"{self._base_url}/api/file/upload-file",
             json={
-                "file": file,
+                "file": file_data,
                 "filepath": filepath,
+                "filename": filename,
             },
         )
         tool_result = ToolResult.from_sandbox(**response.json())
@@ -347,7 +356,7 @@ class DockerSandbox(Sandbox):
         tool_result = ToolResult.from_sandbox(**response.json())
         return tool_result
 
-    async def delete_file(self, filepath: str, sudo: bool = False) -> ToolResult:
+    async def file_delete(self, filepath: str, sudo: bool = False) -> ToolResult:
         response = await self.client.post(
             f"{self._base_url}/api/supervisor/delete-file",
             json={
@@ -359,7 +368,7 @@ class DockerSandbox(Sandbox):
         tool_result = ToolResult.from_sandbox(**response.json())
         return tool_result
 
-    async def download_file(self, filepath: str, sudo: bool = False) -> ToolResult:
+    async def file_download(self, filepath: str, sudo: bool = False) -> ToolResult:
         response = await self.client.post(
             f"{self._base_url}/api/supervisor/download-file",
             json={

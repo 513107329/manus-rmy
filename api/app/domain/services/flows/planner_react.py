@@ -55,13 +55,13 @@ class PlannerReactFlow(BaseFlow):
         self.plan: Optional[Plan] = None
 
         tools = [
-            FileTool(sandbox=sandbox),
-            ShellTool(sandbox=sandbox),
-            BrowserTool(browser=browser),
-            SearchTool(search_engine=search_engine),
+            # FileTool(sandbox=sandbox),
+            # ShellTool(sandbox=sandbox),
+            # BrowserTool(browser=browser),
+            # SearchTool(search_engine=search_engine),
             MessageTool(),
             mcp_tool,
-            a2a_tool,
+            # a2a_tool,
         ]
 
         self.planner = PlannerAgent(
