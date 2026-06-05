@@ -104,21 +104,23 @@ class BaseAgent(ABC):
         self, tool: BaseTool, tool_name: str, tool_args: Dict[str, Any]
     ) -> AsyncGenerator[Event, None]:
         """执行工具"""
+        err = ""
         for _ in range(self._agent_config.max_retries):
             try:
                 return await tool.invoke(tool_name, **tool_args)
             except Exception as e:
+                err = str(e)
                 logger.error(f"执行工具失败: {str(e)}")
                 await asyncio.sleep(self._retry_interval)
                 continue
 
-        return ToolResult(success=False, error=str(e))
+        return ToolResult(success=False, error=err)
 
     async def _invoke_llm(
         self, messages: List[Dict[str, Any]], format: Optional[str] = None
     ) -> AsyncGenerator[Event, None]:
         await self._add_to_memory(messages)
-        response_format = {"type": format } if format else None
+        response_format = {"type": format} if format else None
 
         for _ in range(self._agent_config.max_retries):
             try:
