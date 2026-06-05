@@ -188,6 +188,7 @@ class BaseAgent(ABC):
                     tool_call.get("function").get("arguments")
                 )
                 tool = self._get_tool(function_name)
+                logger.info(f"tool: {tool}")
                 yield ToolEvent(
                     tool_call_id=tool_id,
                     tool_name=tool.name,

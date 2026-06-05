@@ -37,7 +37,7 @@ MCP客户端管理器的开发思路:
 logger = logging.getLogger(__name__)
 
 
-class MCPClientManager:
+class McpClientManager:
     """MCP客户端管理器"""
 
     def __init__(self, mcp_config: Optional[Mcp_Config] = None) -> None:
@@ -350,7 +350,7 @@ class MCPClientManager:
             self._initialized = False
 
 
-class MCPTool(BaseTool):
+class McpTool(BaseTool):
     """MCP工具包，包含所有已配置+已启动的MCP工具"""
     name: str = "mcp"
 
@@ -359,14 +359,14 @@ class MCPTool(BaseTool):
         super().__init__()
         self._initialized: bool = False
         self._tools = []
-        self._manager: MCPClientManager = None
+        self._manager: McpClientManager = None
 
-    async def initialize(self, mcp_config: Optional[MCPConfig] = None) -> None:
+    async def initialize(self, mcp_config: Optional[Mcp_Config] = None) -> None:
         """初始化MCP工具包"""
         # 1.判断是否初始化，如果未初始化则进行初始化
         if not self._initialized:
             # 2.初始化MCP客户端管理器
-            self._manager = MCPClientManager(mcp_config=mcp_config)
+            self._manager = McpClientManager(mcp_config=mcp_config)
             await self._manager.initialize()
 
             # 3.获取mcpServers工具列表
