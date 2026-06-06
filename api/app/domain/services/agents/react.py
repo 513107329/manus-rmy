@@ -76,6 +76,7 @@ class ReActAgent(BaseAgent):
                         yield WaitEvent()
                         return
                     continue
+                yield event
             elif isinstance(event, MessageEvent):
                 step.status = ExecutionStatus.COMPLETED
                 parsed_obj = await self._json_parser.invoke(event.message)

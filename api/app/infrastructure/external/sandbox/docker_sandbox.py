@@ -61,12 +61,11 @@ class DockerSandbox(Sandbox):
             return None
 
     @classmethod
-    def _get_container_ip(cls, container: docker.models.containers.Container) -> str:
-        network_settings = container.attrs["NetworkSettings"]
-        ip = network_settings["IPAddress"]
-        if not ip and network_settings.get("Networks"):
-            networks = network_settings["Networks"]
-            for network in networks.values():
+    def _get_container_ip(cls, container: docker.models.containers.Container) -> str | None:
+        network_settings = container.attrs.get("NetworkSettings", {})
+        ip = network_settings.get("IPAddress")
+        if not ip:
+            for network in network_settings.get("Networks", {}).values():
                 ip = network.get("IPAddress")
                 if ip:
                     break
