@@ -79,7 +79,7 @@ class AgentService:
 
         browser = await sandbox.get_browser()
         if browser is None:
-            raise AppException(msg=f"会话{session.id}的浏览器不存在")
+            raise AppException(code=500, status_code=500, msg=f"会话{session.id}的浏览器不存在")
 
         taskRunner = AgentTaskRunner(
             llm=self.llm,

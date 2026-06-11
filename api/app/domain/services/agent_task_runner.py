@@ -182,7 +182,7 @@ class AgentTaskRunner(TaskRunner):
 
     async def _get_browser_screenshot(self) -> str:
         try:
-            screenshot = await self.browser.screenshot()
+            screenshot = await self.browser.screenshot(full_page=True)
             result = await self.file_storage.upload_file(
                 UploadFile(
                     file=io.BytesIO(screenshot),
@@ -192,7 +192,7 @@ class AgentTaskRunner(TaskRunner):
             )
             settings = get_settings()
             # https://soon-web.tos-cn-shanghai.volces.com/2026/05/21/71007773-7a85-4a3b-a32a-da91be69026b..png
-            return f"https://{settings.tos_bucket}.{settings.tos_endpoint}/{result.id}"
+            return f"https://{settings.tos_bucket}.{settings.tos_endpoint}/{result.key}"
         except Exception as e:
             logger.error(f"获取浏览器截图失败: {str(e)}")
             return ""

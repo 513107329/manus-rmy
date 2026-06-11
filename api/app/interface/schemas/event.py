@@ -143,6 +143,7 @@ class PlanSSEEvent(BaseSSEEvent):
                     )
                     for step in event.plan.steps
                 ],
+                status=event.status,
             ),
         )
 

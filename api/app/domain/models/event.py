@@ -22,6 +22,7 @@ class PlanEventStatus(str, Enum):
     CREATED = "created"  # 规划创建
     UPDATED = "updated"  # 规划更新
     DELETED = "deleted"  # 规划删除
+    COMPLETED = "completed"  # 规划完成
 
 
 class StepEventStatus(str, Enum):

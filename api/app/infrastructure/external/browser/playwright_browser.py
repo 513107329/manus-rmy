@@ -1,17 +1,21 @@
+import asyncio
+import logging
+from typing import TYPE_CHECKING, Any, List, Optional
+
+from markdownify import markdownify
+from playwright.async_api import async_playwright
+
+from app.domain.external.browser import Browser as BrowserProtocol
+from app.domain.external.llm import LLM
+from app.domain.models.tool_result import ToolResult
 from app.infrastructure.external.browser.playwrightBrowserFunc import (
-    GET_VISIBLE_CONTENT_FUNC,
     GET_INTERACTIVE_VISIBLE_CONTENT_FUNC,
+    GET_VISIBLE_CONTENT_FUNC,
     INJECT_CONSOLE_FUNC,
 )
-import asyncio
-from app.domain.models.tool_result import ToolResult
-import logging
-from app.domain.external.llm import LLM
-from typing import Optional
-from app.domain.external.browser import Browser as BrowserProtocol
-from playwright.async_api import Playwright, Browser, Page, async_playwright
-from markdownify import markdownify
-from typing import List, Any
+
+if TYPE_CHECKING:
+    from playwright.async_api import Browser as PwBrowser, Page, Playwright
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +24,9 @@ class PlayWrightBrowser(BrowserProtocol):
     def __init__(self, cdp_url: str, llm: Optional[LLM] = None):
         self.cdp_url = cdp_url
         self.llm: Optional[LLM] = llm
-        self.playwright: Optional[Playwright] = None
-        self.browser: Optional[Browser] = None
-        self.page: Optional[Page] = None
+        self.playwright: Optional["Playwright"] = None
+        self.browser: Optional["PwBrowser"] = None
+        self.page: Optional["Page"] = None
 
     async def initialize(self) -> bool:
         max_retries = 5
@@ -31,19 +35,16 @@ class PlayWrightBrowser(BrowserProtocol):
         for attempt in range(max_retries):
             try:
                 self.playwright = await async_playwright().start()
-                self.browser = await self.playwright.chromium.connect(self.cdp_url)
+                logger.info("Connecting to CDP: %s", self.cdp_url)
+                self.browser = await self.playwright.chromium.connect_over_cdp(
+                    self.cdp_url,
+                    is_local=self.cdp_url.startswith("http://127.0.0.1")
+                    or self.cdp_url.startswith("http://localhost"),
+                )
 
                 contexts = self.browser.contexts
-
-                if contexts and len(contexts[0].pages) == 1:
-                    page = contexts[0].pages[0]
-
-                    if (
-                        page.url == "chrome://newtab/"
-                        or page.url == "about:blank"
-                        or not page.url
-                    ):
-                        self.page = page
+                if contexts and contexts[0].pages:
+                    self.page = contexts[0].pages[-1]
                 else:
                     context = (
                         contexts[0] if contexts else await self.browser.new_context()
@@ -64,28 +65,14 @@ class PlayWrightBrowser(BrowserProtocol):
     async def cleanup(self) -> None:
         try:
             if self.browser:
-                browser = self.browser
-                contexts = browser.contexts
-
-                for context in contexts:
-                    pages = context.pages
-
-                    for page in pages:
-                        if not page.is_closed():
-                            await page.close()
-
-                await browser.close()
-
-            if not self.page.is_closed():
-                await self.page.close()
-
-            if self.browser:
                 await self.browser.close()
+            elif self.page and not self.page.is_closed():
+                await self.page.close()
 
             if self.playwright:
                 await self.playwright.stop()
         except Exception as e:
-            logger.error(f"清理浏览器失败: {e}")
+            logger.error("清理浏览器失败: %s", e)
         finally:
             self.page = None
             self.browser = None
@@ -152,6 +139,7 @@ class PlayWrightBrowser(BrowserProtocol):
             return markdown_content[:MAX_CONTENT_LEN]
 
     async def _extract_interactive_content(self) -> List[str]:
+        logger.info(f"开始提取交互元素")
         await self._ensure_page_exist()
 
         self.page.interactive_elements_cache = []
@@ -159,12 +147,13 @@ class PlayWrightBrowser(BrowserProtocol):
         interactive_elements = await self.page.evaluate(
             GET_INTERACTIVE_VISIBLE_CONTENT_FUNC
         )
-
+        logger.info(f"提取交互元素结束: {interactive_elements}")
         self.page.interactive_elements_cache = interactive_elements
 
         formatted_elements = []
 
         for element in interactive_elements:
+            logger.info("formatting element: %s", element)
             formatted_elements.append(f"{element['index']}:{element['outerHTML']}")
 
         return formatted_elements
@@ -172,10 +161,14 @@ class PlayWrightBrowser(BrowserProtocol):
     async def navigate(self, url: str) -> ToolResult:
         await self._ensure_page_exist()
         try:
+            logger.info(f"开始跳转: {url}")
             await self.page.goto(url)
+            logger.info(f"跳转结束: {url}")
+            data = await self._extract_interactive_content()
+            logger.info(f"navigate data: {data}")
             return ToolResult(
                 success=True,
-                data=await self._extract_interactive_content(),
+                data=data,
                 message="页面导航成功",
             )
         except Exception as e:
@@ -226,17 +219,13 @@ class PlayWrightBrowser(BrowserProtocol):
             logger.error(f"滚动失败: {e}")
             return ToolResult(success=False, message=f"滚动失败: {e}")
 
-    async def screenshot(self, full_page: Optional[bool] = None) -> ToolResult:
+    async def screenshot(self, full_page: Optional[bool] = None) ->  bytes:
         await self._ensure_page_exist()
-        try:
-            if full_page:
-                screenshot = await self.page.screenshot(full_page=True, type="png")
-            else:
-                screenshot = await self.page.screenshot(type="png")
-            return ToolResult(success=True, message="截图成功", data=screenshot)
-        except Exception as e:
-            logger.error(f"截图失败: {e}")
-            return ToolResult(success=False, message=f"截图失败: {e}")
+        if full_page:
+            screenshot = await self.page.screenshot(full_page=True, type="png")
+        else:
+            screenshot = await self.page.screenshot(type="png")
+        return screenshot
 
     async def console_exec(self, javascript: str) -> ToolResult:
         await self._ensure_page_exist()
@@ -347,7 +336,7 @@ class PlayWrightBrowser(BrowserProtocol):
                 try:
                     await element.fill("")
                     await element.type(text)
-                except Exception as e:
+                except Exception:
                     await element.click()
                     await element.type(text)
             except Exception as e:

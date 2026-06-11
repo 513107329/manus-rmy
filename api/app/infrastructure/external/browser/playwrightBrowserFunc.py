@@ -1,5 +1,4 @@
-GET_VISIBLE_CONTENT_FUNC = """
-const getVisibleContent = () => {
+GET_VISIBLE_CONTENT_FUNC = """() => {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const visibilityContent = []
@@ -32,8 +31,7 @@ const getVisibleContent = () => {
 }
 """
 
-GET_INTERACTIVE_VISIBLE_CONTENT_FUNC = """
-const getInteractiveVisibleContent = () => {
+GET_INTERACTIVE_VISIBLE_CONTENT_FUNC = """() => {
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const interactiveElements = [];
@@ -108,8 +106,7 @@ const getInteractiveVisibleContent = () => {
 }
 """
 
-INJECT_CONSOLE_FUNC = """
-const injectConsole = () => {
+INJECT_CONSOLE_FUNC = """() => {
     window.console.logs = []
     const originalConsoleLog = window.console.log;
     window.console.log = function(...args) {

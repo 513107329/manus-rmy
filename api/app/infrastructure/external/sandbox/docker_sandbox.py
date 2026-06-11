@@ -2,7 +2,7 @@ from typing import BinaryIO, Self
 from fastapi import UploadFile
 import logging
 from app.domain.models.tool_result import ToolResult
-from app.infrastructure.external.browser.playwright import PlayWrightBrowser
+from app.infrastructure.external.browser.playwright_browser import PlayWrightBrowser
 from app.domain.external.browser import Browser
 import uuid
 import asyncio

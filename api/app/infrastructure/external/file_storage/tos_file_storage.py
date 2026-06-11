@@ -31,7 +31,7 @@ class TosFileStorage(FileStorage):
             if not file_extension:
                 file_extension = ""
             date_path = datetime.now().strftime("%Y/%m/%d")
-            tos_key = f"{date_path}/{file_id}.{file_extension}"
+            tos_key = f"{date_path}/{file_id}{file_extension}"
 
             await run_in_threadpool(
                 self.tos._client.put_object,
@@ -54,7 +54,7 @@ class TosFileStorage(FileStorage):
 
             return file
         except Exception as e:
-            logger.error(f"上传文件失败")
+            logger.error(f"上传文件失败: {e}")
             raise ValueError("上传失败")
 
     async def download_file(self, file_id: str) -> Tuple[BinaryIO, File]:

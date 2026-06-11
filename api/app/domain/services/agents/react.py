@@ -76,7 +76,6 @@ class ReActAgent(BaseAgent):
                         yield WaitEvent()
                         return
                     continue
-                yield event
             elif isinstance(event, MessageEvent):
                 step.status = ExecutionStatus.COMPLETED
                 parsed_obj = await self._json_parser.invoke(event.message)
@@ -95,11 +94,9 @@ class ReActAgent(BaseAgent):
                 step.status = ExecutionStatus.FAILED
                 step.error = event.error
                 yield StepEvent(step=step, status=StepEventStatus.FAILED)
-            else:
-                yield event
 
+            yield event
         step.status = ExecutionStatus.COMPLETED
-        yield StepEvent(step=step, status=StepEventStatus.COMPLETED)
 
     async def summarize(self) -> AsyncGenerator[Event, None]:
         query = SUMMARY_PROMPT
