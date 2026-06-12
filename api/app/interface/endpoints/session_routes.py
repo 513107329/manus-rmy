@@ -298,6 +298,7 @@ async def vnc_websocket(
                 try:
                     while True:
                         data = await websocket.receive_bytes()
+                        logger.info(f"收到客户端数据: {data}")
                         await sandbox_websocket.send(data)
                 except WebSocketDisconnect:
                     logger.info("VNC WebSocket连接已断开")
@@ -317,7 +318,7 @@ async def vnc_websocket(
             forward_to_sandbox_task = asyncio.create_task(forwrad_to_sandbox())
             forward_to_client_task = asyncio.create_task(forwrad_to_client())
 
-            done, pending = await asyncio.wait(
+            _, pending = await asyncio.wait(
                 [forward_to_sandbox_task, forward_to_client_task],
                 return_when=asyncio.FIRST_COMPLETED,
             )

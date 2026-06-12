@@ -25,7 +25,8 @@ class DockerSandbox(Sandbox):
         self._container_name = container_name
         self._base_url = f"http://{self._ip}:8000"
         self._cdp_url = f"http://{self._ip}:9222"
-        self._vnc_url = f"http://{self._ip}:5900"
+        # 沙箱内 websockify 监听 5901，对外提供 WebSocket（5900 为原生 VNC RFB）
+        self._vnc_url = f"ws://{self._ip}:5901"
 
     @property
     def id(self) -> str:
@@ -86,12 +87,6 @@ class DockerSandbox(Sandbox):
                 "name": container_name,
                 "detach": True,
                 "remove": True,
-                "ports": {
-                    "8000/tcp": 8000,
-                    "9222/tcp": 9222,
-                    "5900/tcp": 5900,
-                    "5901/tcp": 5901,
-                },
                 "environment": {
                     "SERVICE_TIMEOUT_MINUTES": settings.sandbox_ttl_minutes,
                     "CHROME_ARGS": settings.sandbox_chrome_args,
@@ -115,7 +110,7 @@ class DockerSandbox(Sandbox):
             logger.info(f"Sandbox container {container_name} created")
             ip = cls._get_container_ip(container)
             logger.info(f"Sandbox container {container_name} IP: {ip}")
-            return cls(ip="127.0.0.1", container_name=container_name)
+            return cls(ip=ip, container_name=container_name)
         except Exception as e:
             logger.error(f"Failed to create sandbox: {e}")
             raise Exception(f"Failed to create sandbox: {e}")
@@ -126,7 +121,7 @@ class DockerSandbox(Sandbox):
 
         if settings.sandbox_address:
             ip = await cls._resolve_hostname_to_ip(settings.sandbox_address)
-            return cls(ip="127.0.0.1", container_name=settings.sandbox_name_prefix)
+            return cls(ip=ip, container_name=settings.sandbox_name_prefix)
 
         return await asyncio.to_thread(cls._create_task)
 
@@ -170,7 +165,7 @@ class DockerSandbox(Sandbox):
                     logger.error(f"Sandbox container {id} has no IP address")
                     return None
 
-                return cls(ip='127.0.0.1', container_name=id)
+                return cls(ip=ip, container_name=id)
             except docker.errors.NotFound:
                 logger.error(f"Sandbox container {id} not found")
                 return None
