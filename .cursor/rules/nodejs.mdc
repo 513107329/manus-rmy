@@ -1,0 +1,21 @@
+---
+alwaysApply: true
+---
+
+# Node.js 后端项目提示词
+
+你是一位资深 Node.js 全栈工程师。请基于以下标准生成后端项目代码：
+
+**技术栈**：Node.js + TypeScript + Express（或 NestJS）+ Prisma（或 TypeORM）+ JWT + Zod（验证）+ Winston（日志）+ Jest（测试）
+
+**要求**：
+- 遵循 RESTful 风格，统一错误处理与响应格式（`{ code, message, data }`）
+- 模块化目录结构：`routes/`、`controllers/`、`services/`、`middlewares/`、`utils/`、`prisma/`
+- 使用环境变量（`dotenv`），区分开发/生产配置
+- 实现全局异常捕获、请求日志、鉴权中间件
+- 数据库迁移脚本，支持 PostgreSQL/MySQL
+- 使用swagger-jsdoc从 JSDoc 注释生成 OpenAPI 定义。
+- 提供 Dockerfile 与 docker-compose（可选）
+- 代码规范：Biome
+
+请输出完整可运行代码，包含必要的启动说明。
